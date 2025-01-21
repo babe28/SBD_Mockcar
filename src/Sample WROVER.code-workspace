@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"name": "TEST_BOARD_WROVER",
+			"path": "../../../Documents/PlatformIO/Projects/TEST_BOARD_WROVER"
+		}
+	],
+	"settings": {}
+}

@@ -1,0 +1,110 @@
+開発memo
+
+####### バージョン履歴 #######
+2025/1/5 v0.2 計測は可能
+
+####### 実装目標／マイルストーン #######
+1.関数の整理       あらかたOKもう少し
+2.スプライトの使用  いまのところまだ
+3.メニューの作成    x
+4.外部との連携      
+5.履歴表示機能      x
+6.安定動作         まあまあ
+7.センサー動作      x
+8.構造体に全部をまかせる　ほぼOK
+
+
+race終わり->
+リセットボタンでReady表示に変更
+
+-----Interruput関数-----
+startTimer
+stopTimer1
+stopTimer2
+stopTimer3
+handleResetButton
+handleUpButton
+handleDownButton
+
+----- メイン関数 -----
+addTime
+resetTimers
+displayTime
+displaySplash
+memory_write
+displayinit
+
+sensordetect
+sendBluetoothData
+startsensor
+
+detectLongPressForSetup
+detectExitSetupMode
+
+メインloop
+
+
+#----- <グローバル変数> -----#
+startTime       millisとの差分用
+stopTimes[]     止めた時間記録
+isTiming[]      
+resetFlag       リセットボタン押されたとき
+raceFlag        タイマー稼働中かどうか
+setupMode       セットアップモード
+firtrun         電源投入後1回のみ判定
+goalcount       3台ゴールで止める用カウンタ
+raceTotalCount  起動後何回走ったか
+menuSelector[]  メニューのセレクタ用
+
+buttonPressStart
+isButtonPressed
+inSetupMode
+buttonPressStartA/B
+isButtonPressed A/B
+
+boarOPMode      ボードの実行モード選択
+on_cycle        
+best_time_onboard
+sensor_gain_start
+sensor_gain_goal
+
+構造体
+Button(PIN,numberKeyPresses,pressed,lastMillis)
+racetimer(history[10],bestTime)[i]
+
+timer
+timer.bestTime
+
+#----- <画面描画について> -----#
+デフォ 240x160だけど
+座標点
+(0,0)      (110,0)       (230,0)
+           (110,70)
+(0,155)    (110,155)    (230,155)
+
+センター
+
+１５ｐｘくらい切れてる？
+下部ステータスバーはy138から描画
+gfx.height()-18 = 138
+
+8x16pxだからびっしり書くと
+横が8x29=232
+
+#----- <画面描画について> -----#
+デフォ 240x160だけど
+座標点
+(0,0)      (110,0)       (230,0)
+           (110,70)
+(0,155)    (110,155)    (230,155)
+
+センター
+
+X 360 x Y240
+240稼働のプログレスバー
+(360 - 120)=240/2 = 120
+座標点
+(10,0)      (180,0)       (350,0)
+           (x180,y120)
+           statusbar Y=220から
+(10,240)    (180,239)    (350 ,239)
