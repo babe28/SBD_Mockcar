@@ -12,7 +12,6 @@
 #include "main.hpp"
 
 //割り込み設定ここから
-
 // ゴールセンサー用割り込みでタイマーストップを指示
 void IRAM_ATTR goalSensorISR1() {
     stopTimer(0);   //タイマー1を停止
@@ -32,6 +31,7 @@ void IRAM_ATTR handleResetButton() {
     systemState.buttons[0].isPressed = true; // リセットボタンが押されたフラグをセット
 }
 
+//スタートセンサーのチェック・ポーリング・チャタリング対策アリ
 void checkStartSensor() {
     static bool lastSensorState = HIGH; // 前回のセンサー状態
     static unsigned long lastTriggerTime = 0;
@@ -58,7 +58,6 @@ void stopTimer(int timerId) {
     //該当タイマー番号のタイマーガストップしたことを記録する関数
     Timer &timer = systemState.race.timers[timerId];
     Sensor &goal_sensor = systemState.race.goalSensors[timerId];
-    //クラスからもってくる
 
     if (timer.isTiming) {//タイマーが動いていたら
         timer.stopTime = millis() - systemState.race.startTime; // startTimeから現在時刻を引いて、ストップ時間（つまり経過時間）を記録
@@ -85,6 +84,7 @@ void checkResetButton() {
     }
 }
 
+//センサーをポーリング  ここはセンサーの値を取得するだけ
 bool isSensorTriggered(Sensor &sensor) {
     unsigned long currentTime = millis();
     uint8_t distance = start_Sensor.getDistance();
@@ -144,7 +144,7 @@ void updateButtonStates() {
     }
 }
 
-
+// ゴールセンサーの割り込みを無効化 今のところ使っていない
 void disableGoalSensorInterrupts() {
     detachInterrupt(digitalPinToInterrupt(GOAL_SENS_1));
     detachInterrupt(digitalPinToInterrupt(GOAL_SENS_2));

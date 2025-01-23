@@ -1,5 +1,5 @@
-/*  グラフィック関連をまとめたファイル
-*   mockcar-race-program v0.2
+/*  グラフィック・描画関連
+*   mockcar-race-program v0.6
 *   graphic.cpp
 * 
 *   displaySplashScreen()   起動画面表示
@@ -23,8 +23,8 @@
 //ディスプレイ初期化（起動時）
 void displaySplashScreen() {
 
-    gfx.fillScreen(gfx.color888(0,0,0));        //この形式が使えるかの確認
-    gfx.setFont(&fonts::efontJA_16_b);          //日本語フォントはこれ
+    gfx.fillScreen(gfx.color888(0,0,0));
+    gfx.setFont(&fonts::efontJA_16_b);          //日本語フォントはこれを使用する
     gfx.setTextColor(TFT_WHITE,TFT_BLACK);
     gfx.setTextWrap(false);                   //テキスト折り返し　しない
     gfx.setTextSize(1.3);                     //テキストサイズ

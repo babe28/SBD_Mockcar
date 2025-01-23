@@ -137,6 +137,7 @@ const int GOAL_SENS_PINS[3] = {GOAL_SENS_1, GOAL_SENS_2, GOAL_SENS_3};
 const int buttonPins[3] = {SETUP_BUTTON_PIN, UP_BUTTON_PIN, DOWN_BUTTON_PIN};
 extern Button buttonStates[3];
 
+extern bool SerialDebug;               //シリアルデバッグモード
 
 
 class LGFX : public lgfx::LGFX_Device {
@@ -149,6 +150,8 @@ extern LGFX gfx;                //インスタンス名gfx
 extern LGFX_Sprite sprite1;     //スプライト作成
 
 extern VL6180x start_Sensor;
+extern DFRobotDFPlayerMini mp3;
+
 
 extern const lgfx::U8g2font myFont;
 

@@ -43,7 +43,7 @@ VL6180x start_Sensor(VL6180X_ADDRESS);
 
   LGFX::LGFX(void) {
     { // 表示パネル制御の設定
-      auto cfg = _panel_instance.config();    // 表示パネル設定用の構造体を取得します。
+      auto cfg = _panel_instance.config();    // 表示パネル設定用の構造体を取得
       // 出力解像度を設定;
       cfg.memory_width  = SCREEN_WIDTH; // 出力解像度 幅
       cfg.memory_height = SCREEN_HEIGHT; // 出力解像度 高さ
@@ -62,7 +62,7 @@ VL6180x start_Sensor(VL6180X_ADDRESS);
       // cfg.signal_type = cfg.signal_type_t::NTSC;
       cfg.signal_type = cfg.signal_type_t::NTSC_J;
       // 出力先のGPIO番号を設定;
-      cfg.pin_dac = 26;       // DACを使用するため、 25 または 26 のみが選択できます;
+      cfg.pin_dac = 26;       // DAC25 または 26 のみが選択できます;
       // PSRAMメモリ割当の設定;
       cfg.use_psram = 1;      // 0=PSRAM不使用 / 1=PSRAMとSRAMを半々使用 / 2=全部PSRAM使用;
       // 出力信号の振幅の強さを設定;
@@ -138,6 +138,10 @@ void setup(void)
   systemState.race.raceFlag = false;          //レース中判定
   systemState.race.startTime = 0;             //スタートタイム保持
   systemState.race.goalCount = 0;             //ゴールカウンター（１レース毎）
+  
+  /* シリアルデバッグを有効化するならここ */
+  SerialDebug = true;                        //シリアルデバッグモード
+
     for (int i = 0; i < 3; i++) {
         systemState.race.timers[i].stopTime = 0;    //レーン毎の停止時間
         systemState.race.timers[i].isTiming = false;    //タイマー稼働中判定
@@ -224,7 +228,11 @@ void loop() {
     }
 
     if(isSensorTriggered(startSensor)){
+      if (SerialDebug)
+      {
       Serial.println("sensor TRIG!!");
+      }
+      
       startRace();
     }
 
@@ -321,10 +329,10 @@ void ReceiveIR(){
  * タイマー関連関数
  **************************************************** */
 void resetTimers() {
-    systemState.race.startTime = 0;
-    systemState.race.raceFlag = false;
-    systemState.race.goalCount = 0;
-    systemState.race.startSensor.isActive = false;
+    systemState.race.startTime = 0;                   //スタート時間クリア
+    systemState.race.raceFlag = false;                //レース中ではない
+    systemState.race.goalCount = 0;                   //ゴールカウントクリア
+    systemState.race.startSensor.isActive = false;    //スタートセンサー非アクティブ
     systemState.race.startSensor.lastTriggerTime = 0;
 
     for (int i = 0; i < 3; i++) {
@@ -333,7 +341,9 @@ void resetTimers() {
         timer.isTiming = false;
     }
 
-    Serial.println("[DEBUG] Timers and race state reset!");
+    if(SerialDebug){
+      Serial.println("[DEBUG] Timers and race state reset!");
+    }
 }
 
 void startRace() {
@@ -408,7 +418,7 @@ void endRace() {
 
 void addRaceHistory(unsigned long carTimes[], int raceNumber) {
     systemState.currentHistoryIndex = (systemState.currentHistoryIndex + 1) % 7;
-    //最大の履歴が4になったら0に戻る
+    //最大の履歴が7になったら0に戻る
 
     TimerHistory &history = systemState.history[systemState.currentHistoryIndex];
     history.raceNumber = raceNumber;
@@ -427,7 +437,7 @@ void addRaceHistory(unsigned long carTimes[], int raceNumber) {
     Serial.printf("[DEBUG] Race %d added to history.\n", raceNumber);
 }
 
-
+//履歴初期化。ここの履歴は7回分まで。
 void initializeHistory() {
     for (int i = 0; i < 7; i++) {
         systemState.history[i].raceNumber = 0;
