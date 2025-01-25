@@ -85,7 +85,6 @@ void updateDisplay() {//描画を分けるところ。描画関連はまずこ�
     if (currentState != previousState) {
         gfx.fillScreen(TFT_BLACK);
         printf("status changed! FillScreen \n");
-        Serial2.print("StateChange!\0");
     }
 
     switch (currentState) {
@@ -244,7 +243,7 @@ void drawStatusBar(int raceCount, String message, String statusMode, unsigned lo
     gfx.setTextSize(1);
     unsigned long seconds = fastestTime / 1000;
     unsigned long milliseconds = fastestTime % 1000;
-    u_int sensor = start_Sensor.getDistance();
+    
 
 
       // 前回更新からの経過時間を計算
@@ -255,7 +254,7 @@ void drawStatusBar(int raceCount, String message, String statusMode, unsigned lo
             gfx.fillRect(x, y, screenWidth, barHeight, TFT_SKYBLUE);
             gfx.setTextColor(TFT_BLACK, TFT_SKYBLUE);
             gfx.setCursor(5, y + 2);
-            gfx.printf("READY.. FASTEST: %02lu.%03lu <Sens:%d><Cnt:%d>", seconds, milliseconds, sensor,raceCount);
+            gfx.printf("READY.. FASTEST: %02lu.%03lu <Sens:%d><Cnt:%d>", seconds, milliseconds, 256,raceCount);
             //gfx.printf("LUX: %4.2f  Millis :%d mm",sens_Lux,start_Sensor.getDistance());
             
         } else if (statusMode == "Race") {
@@ -263,7 +262,7 @@ void drawStatusBar(int raceCount, String message, String statusMode, unsigned lo
             gfx.setTextColor(TFT_BLACK, TFT_VIOLET);
             gfx.setCursor(5, y + 2);
             //gfx.printf("COUNT:%d FASTEST: %02lu.%03lu <%s>", raceCount, seconds, milliseconds, message.c_str());
-            gfx.printf("RACEMODE<%d> / FASTEST: %02lu.%03lu <%d>",raceCount, seconds, milliseconds, sensor);
+            gfx.printf("RACEMODE<%d> / FASTEST: %02lu.%03lu <%d>",raceCount, seconds, milliseconds, 256);
         } else if (statusMode == "Setup") {
             gfx.fillRect(x, y, screenWidth, barHeight, TFT_DARKGRAY);
             gfx.setTextColor(TFT_WHITE, TFT_DARKGRAY);
@@ -280,7 +279,7 @@ void drawStatusBar(int raceCount, String message, String statusMode, unsigned lo
             gfx.setCursor(5, y + 2);
             gfx.printf("DEBUG: Btn ");
         }
-        gfx.drawFastHLine(x,y-1,sensor);
+        
     }
 }
 

@@ -28,14 +28,14 @@
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
-#define START_SENS 36         //START模擬ボタン(ignore_PULLUP)
-#define GOAL_SENS_1 33        //GOAL模擬ボタン1(ignore_PULLUP)
-#define GOAL_SENS_2 34        //GOAL模擬ボタン2(ignore_PULLUP)
-#define GOAL_SENS_3 35        //GOAL模擬ボタン3(ignore_PULLUP)
+#define START_SENS 33         //START模擬ボタン(ignore_PULLUP)
+#define GOAL_SENS_1 32        //GOAL模擬ボタン1(ignore_PULLUP)
+#define GOAL_SENS_2 35        //GOAL模擬ボタン2(ignore_PULLUP)
+#define GOAL_SENS_3 34        //GOAL模擬ボタン3(ignore_PULLUP)
 
-#define ADC_PIN 21              //ADコンバーターテスト用
+#define ADC_PIN 4             //ADコンバーターテスト用
 #define BULTIN_LED 2            //ボード内蔵LED
-#define RESET_BUTTON_PIN 32     //reset button
+#define RESET_BUTTON_PIN 36     //reset button
 #define SETUP_BUTTON_PIN 13     //setup button(longpress)
 #define UP_BUTTON_PIN 12        //setup button up(A)
 #define DOWN_BUTTON_PIN 14      //setup button down(B)
@@ -44,10 +44,10 @@
 #define RO_MODE true            //データ保存用ReadOnly
 #define MAX_HISTORY 5           //保存する履歴の最大数
 #define STATUSBAR_HEIGHT 18     //ステータスバーの高さ
-#define I2C_SDA 22              //センサー用
-#define I2C_SCL 23
-#define SERIAL_OVR_RX 3
-#define SERIAL_OVE_TX 1
+#define I2C_SDA 22              //RTC用
+#define I2C_SCL 23              //RTC用
+#define SERIAL_MP3_RX 18
+#define SERIAL_MP3_TX 19
 #define RMT_CHANNEL_TX RMT_CHANNNEL_0
 #define CARRIER_FREQ 38000
 
@@ -56,6 +56,7 @@
 #define SCREEN_HEIGHT 240
 
 #define VL6180X_ADDRESS 0x29
+#define DS1307_ADDRESS 0x68
 
 // タイマー状態を管理
 struct Timer {
@@ -149,7 +150,6 @@ public:
 extern LGFX gfx;                //インスタンス名gfx
 extern LGFX_Sprite sprite1;     //スプライト作成
 
-extern VL6180x start_Sensor;
 extern DFRobotDFPlayerMini mp3;
 
 
@@ -174,9 +174,17 @@ void raceSignal();              //レースシグナル
 //io_others.cpp
 void stopTimer(int timerId);
 void updateButtonStates();
-bool isSensorTriggered(Sensor &sensor);
+bool isSensorTriggered();
 void disableGoalSensorInterrupts();
 void enableGoalSensorInterrupts();
+
+//mp3_player.cpp
+void initializeDFPlayer();
+void playMP3(int fileNumber);
+void stopMP3();
+void pauseMP3();
+void resumeMP3();
+void setVolumeMP3(int volume);
 
 //main.cpp
 void checkStartSensor();            // スタートセンサーの監視
@@ -188,7 +196,7 @@ void startRace();
 void resetTimers();
 void addRaceHistory(unsigned long carTimes[], int raceNumber);
 void endRace();
-void printIdentification(struct VL6180xIdentification *temp);
+
 void initializeHistory();
 void ReceiveIR();
 
@@ -228,13 +236,11 @@ extern bool firstrun;                 //起動後初回か判定
 extern int goalcount;                    //ゴール通過台数
 extern int raceTotalCount;               //起動後何回レースしたか
 extern int menuSelector;
-
+extern int boardOPmode;               //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
 
 extern unsigned long buttonPressStart;   // ボタンが押された時刻を記録（長押し判定用）
 extern bool isButtonPressed;         // ボタンが押されているか
 extern bool inSetupMode;             // セットアップモードかどうか
-
-extern int boardOPmode;                  //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
 
 // 描画用ステータス
 extern unsigned long lastUpdateTime; // 前回更新時刻

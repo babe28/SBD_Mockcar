@@ -85,24 +85,8 @@ void checkResetButton() {
 }
 
 //センサーをポーリング  ここはセンサーの値を取得するだけ
-bool isSensorTriggered(Sensor &sensor) {
-    unsigned long currentTime = millis();
-    uint8_t distance = start_Sensor.getDistance();
-
-    // センサーの範囲外エラーをチェックすっとばし
-
-    // 距離が10mm以下で、センサーがアクティブでない場合にトリガー
-    if (distance <= 10 && !sensor.isActive && currentTime - sensor.lastTriggerTime > 50) { // 50msデバウンス
-        sensor.lastTriggerTime = currentTime;
-        sensor.isActive = true;
-        sensor.isSense = true; // センサーが反応したことを記録
-        return true;
-    } else if (distance > 10) {
-        sensor.isActive = false;
-        sensor.isSense = false; // センサー反応なし
-    }
-
-    return false;
+bool isSensorTriggered() {
+    return true;
 }
 
 // -----------------------

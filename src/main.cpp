@@ -39,7 +39,6 @@ float sensor_gain_start = 1.00; //センサーのゲイン（スタート）
 float sensor_gain_goal = 1.00; //センサーゲイン（ゴール）
 
 SystemState systemState;
-VL6180x start_Sensor(VL6180X_ADDRESS);
 
   LGFX::LGFX(void) {
     { // 表示パネル制御の設定
@@ -66,7 +65,7 @@ VL6180x start_Sensor(VL6180X_ADDRESS);
       // PSRAMメモリ割当の設定;
       cfg.use_psram = 1;      // 0=PSRAM不使用 / 1=PSRAMとSRAMを半々使用 / 2=全部PSRAM使用;
       // 出力信号の振幅の強さを設定;
-      cfg.output_level = 128; // 初期値128
+      cfg.output_level = 140; // 初期値128
       // ※ GPIOに保護抵抗が付いている等の理由で信号が減衰する場合は数値を上げる。;
       // ※ M5StackCore2 はGPIOに保護抵抗が付いているため 200 を推奨。;
       // 彩度信号の振幅の強さを設定;
@@ -92,6 +91,8 @@ Sensor startSensor;
 RingbufHandle_t IRbuffer=NULL;
 
 std::string IRcmd = "";
+  /* シリアルデバッグを有効化するならここ */
+bool SerialDebug = true;                        //シリアルデバッグモード
 
 /* ********************************************************* */
 /* *********** ボードセットアップここから **********************/
@@ -120,8 +121,12 @@ void setup(void)
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_3), goalSensorISR3, FALLING);
   attachInterrupt(digitalPinToInterrupt(RESET_BUTTON_PIN),handleResetButton, FALLING);//追加した
 
+  int boardOPmode = 1;                            //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
+
   Serial.begin(115200);                   // Start Serial at 115200bps
-  Serial2.begin(9600,SERIAL_8N1,18,19);   //シリアル通信２：外部センサー用
+  //Serial2.begin(9600,SERIAL_8N1,18,19);   //シリアル通信２：外部センサー用
+  initializeDFPlayer();                    //DFPlayer初期化
+  setVolumeMP3(10);                        //音量設定
   Wire.begin(I2C_SDA,I2C_SCL);            // Start I2C library
 
   Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );                      //メモリ確認
@@ -139,9 +144,6 @@ void setup(void)
   systemState.race.startTime = 0;             //スタートタイム保持
   systemState.race.goalCount = 0;             //ゴールカウンター（１レース毎）
   
-  /* シリアルデバッグを有効化するならここ */
-  SerialDebug = true;                        //シリアルデバッグモード
-
     for (int i = 0; i < 3; i++) {
         systemState.race.timers[i].stopTime = 0;    //レーン毎の停止時間
         systemState.race.timers[i].isTiming = false;    //タイマー稼働中判定
@@ -150,7 +152,6 @@ void setup(void)
     }
   systemState.config.setupMode = false;       //設定モードにいるか判定
   systemState.config.selectedMenuItem = 0;    //設定モードのメニュー選択用
-  boardOPmode = 1;                            //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
 
   rmt_config_t rmtConfig;                         //赤外線受信クラス定義
   rmtConfig.rmt_mode = RMT_MODE_RX;               //受信モード
@@ -169,16 +170,10 @@ void setup(void)
   rmt_rx_start(RMT_CHANNEL_0, true);
 
 
-  if (start_Sensor.VL6180xInit() != 0)
-  {
-    Serial.println("Failed to initialize. VL6180"); // Initialize device and check for errors
-    systemState.config.sensorGainGoal = -1; //センサー初期化失敗で-1
-  }
+  //VL6180Xセンサー初期化してたところ
 
-  start_Sensor.VL6180xDefautSettings();
   SerialBT.println("setup function finished.");
   Serial.println("setup function finished");
-  Serial2.println("SETUP END \0");
   
   resetRaceState();               //変数初期化
   delay(100);                     //
@@ -212,7 +207,9 @@ void loop() {
         drawIdleScreen();           // 初期画面を描画
         initializeHistory();        //レースヒストリー初期化
         firstRun = false;           // 初期フラグを解除
-        
+        playMP3(1);
+        delay(3000);
+        stopMP3();
         return;
     }
 
@@ -227,7 +224,8 @@ void loop() {
       systemState.config.setupMode = true;
     }
 
-    if(isSensorTriggered(startSensor)){
+/*
+    if(isSensorTriggered()){
       if (SerialDebug)
       {
       Serial.println("sensor TRIG!!");
@@ -235,6 +233,7 @@ void loop() {
       
       startRace();
     }
+*/
 
     // ループ間隔の調整（必要に応じて調整）
     //タイマーストップは割り込みなので、まぁあんまり関係ない
@@ -395,12 +394,9 @@ void endRace() {
     
     addRaceHistory(carTimes, systemState.race.totalRaceCount);    // 履歴追加
     for( int i=0;i<3;i++){
-    Serial2.printf("R[%d]:%02lu.%03lu \n",i,systemState.race.timers[i].stopTime/1000,
-        systemState.race.timers[i].stopTime%1000);
     //SerialBT.printf("R[%d]:%02lu.%03lu \n",i,systemState.race.timers[i].stopTime/1000,
     //    systemState.race.timers[i].stopTime%1000);
     }
-    Serial2.print("\0");
 
     systemState.race.raceFlag = false;
     systemState.race.goalCount = 0;
