@@ -19,7 +19,6 @@
 #include <BluetoothSerial.h>        //
 #include <Preferences.h>            //内蔵EEPROM保存用
 #include <Wire.h>                   //I2C
-#include <SparkFun_VL6180X.h>       //センサー用
 #include <driver/rmt.h>             //赤外線モジュール用
 #include <time.h>                   //
 
@@ -37,6 +36,9 @@
 #define BULTIN_LED 2            //ボード内蔵LED
 #define RESET_BUTTON_PIN 36     //reset button
 #define SETUP_BUTTON_PIN 13     //setup button(longpress)
+#define START_BUTTON_PIN 27     //start button
+#define LED_BLUE 13
+#define LED_GREEN 15
 #define UP_BUTTON_PIN 12        //setup button up(A)
 #define DOWN_BUTTON_PIN 14      //setup button down(B)
 #define LONG_PRESS_THR 1500     //長押しスレッショルドタイム

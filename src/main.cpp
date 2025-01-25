@@ -98,13 +98,18 @@ bool SerialDebug = true;                        //シリアルデバッグモー
 /* *********** ボードセットアップここから **********************/
 /* ********************************************************* */
 
+uint8_t send_buf[8]= {0x7E, 0xFF, 0x06, 0x01, 0x00, 0x00, 0x00, 0xEF};
+
 void setup(void)
 {
   //ピンモード設定　IO設定　
   pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);  //リセットボタン
+
   pinMode(UP_BUTTON_PIN, INPUT_PULLUP);     //上ボタン
   pinMode(DOWN_BUTTON_PIN, INPUT_PULLUP);   //下ボタン
   pinMode(SETUP_BUTTON_PIN,INPUT_PULLUP);
+  pinMode(LED_BLUE,OUTPUT);                //LED
+  pinMode(LED_GREEN,OUTPUT);               //LED
   pinMode(BULTIN_LED,OUTPUT);         //内蔵LEDは２ピン
   pinMode(START_SENS,INPUT);          //暫定処理そして残念ながらInput専用でプルアップなし
   pinMode(GOAL_SENS_1, INPUT);        //暫定処理
@@ -113,6 +118,8 @@ void setup(void)
   pinMode(ADC_PIN, INPUT);            //ADCで３つボタン
   digitalWrite(BULTIN_LED,HIGH);  //内蔵LED ON
 
+  pinMode(SERIAL_MP3_RX,INPUT);      //MP3モジュール
+  pinMode(SERIAL_MP3_TX,OUTPUT);     //MP3モジュール 
   analogReadResolution(12);           //ADコンバーター12ビット def12bit
   analogSetAttenuation(ADC_11db);      //ADコンバーターゲイン設定 def11db
 
@@ -124,10 +131,17 @@ void setup(void)
   int boardOPmode = 1;                            //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
 
   Serial.begin(115200);                   // Start Serial at 115200bps
-  //Serial2.begin(9600,SERIAL_8N1,18,19);   //シリアル通信２：外部センサー用
+  Serial2.begin(9600, SERIAL_8N1, 18, 19);
+  Serial.printf("Serial2 Initializing...\n");
+  delay(3000);
   initializeDFPlayer();                    //DFPlayer初期化
-  setVolumeMP3(10);                        //音量設定
-  Wire.begin(I2C_SDA,I2C_SCL);            // Start I2C library
+    Serial.println("Set Volume 20");
+    send_buf[3] = 0x06;
+    send_buf[5] = 0;
+    send_buf[6] = 5;
+    Serial2.write(send_buf,8);
+    delay(200);
+ Wire.begin(I2C_SDA,I2C_SCL);            // Start I2C library
 
   Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );                      //メモリ確認
   Serial.printf("heap_caps_get_largest_free_block(MALLOC_CAP_DMA):%d\n", heap_caps_get_largest_free_block(MALLOC_CAP_DMA) );    //メモリ確認
@@ -183,11 +197,19 @@ void setup(void)
   Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );
   Serial.printf("heap_caps_get_largest_free_block(MALLOC_CAP_DMA):%d\n", heap_caps_get_largest_free_block(MALLOC_CAP_DMA) );
 
-  delay(1500);                    //デバッグ用　取ってOK
+  delay(500);                    //デバッグ用　取ってOK
   digitalWrite(BULTIN_LED,LOW);  //内蔵LED OFF
   time_t time_booted;
   struct tm* tm_local;
   char s_time[100];
+
+    Serial.println("Play next");
+    send_buf[3] = 0x01;
+    send_buf[5] = 0;
+    send_buf[6] = 0;
+    Serial2.write(send_buf,8);
+
+    Serial.println("Wait 30sec");
 }
 
 /* ********************************************************* */
@@ -207,9 +229,11 @@ void loop() {
         drawIdleScreen();           // 初期画面を描画
         initializeHistory();        //レースヒストリー初期化
         firstRun = false;           // 初期フラグを解除
-        playMP3(1);
+        Serial.println("First Run Complete.");
         delay(3000);
-        stopMP3();
+        Serial.println("Play MP3");
+        mp3.randomAll();
+        mp3.volume(5);
         return;
     }
 
@@ -256,7 +280,7 @@ void ReceiveIR(){
 
   uint8_t receive_data[64],byte_count=0;
   size_t rxSize = 0;
-  rmt_data_t *item = (rmt_data_t *)xRingbufferReceive(IRbuffer, &rxSize,1000);
+  rmt_data_t *item = (rmt_data_t *)xRingbufferReceive(IRbuffer, &rxSize,2000);
 
   if(item){
     uint16_t t_base = item[0].duration0/8;

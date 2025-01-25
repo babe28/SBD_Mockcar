@@ -51,7 +51,7 @@ void displaySplashScreen() {
       String count = String(progress);
 
       printCentering(0,185,"Loading " + count + "%");
-      delay(7);
+      delay(5);
     }
 
     gfx.setTextSize(1.2);
@@ -60,7 +60,7 @@ void displaySplashScreen() {
     //gfx.qrcode("https://nsbd.org");//画面いっぱいにでた
 
 
-    delay(1000); // プログレスバー完了後の待機
+    delay(600); // プログレスバー完了後の待機
 }
 
 

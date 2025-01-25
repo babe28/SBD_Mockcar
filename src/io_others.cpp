@@ -95,7 +95,7 @@ bool isSensorTriggered() {
 void updateButtonStates() {
     unsigned long currentTime = millis();
 
-    for (int i = 0; i < 3; i++) { // ボタンが3つの場合
+    /* for (int i = 0; i < 3; i++) { // ボタンが3つの場合
         bool currentState = digitalRead(buttonPins[i]) == LOW; // LOWで押下状態
 
         if (currentState) {
@@ -125,7 +125,7 @@ void updateButtonStates() {
             buttonStates[i].isPressed = false;
             buttonStates[i].isLongPressed = false;
         }
-    }
+    }*/
 }
 
 // ゴールセンサーの割り込みを無効化 今のところ使っていない
