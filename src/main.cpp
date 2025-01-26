@@ -25,6 +25,7 @@ bool firstRun = true;                 //起動後初回実行かどうかを判�
 int goalcount = 0;                    //ゴール通過台数
 int raceTotalCount = 0;               //起動後何回レースしたか
 RingbufHandle_t buffer = NULL;        // IR用リングバッファ
+RingbufHandle_t IRbuffer=NULL;
 Button buttonStates[3];               //ボタン設定用
 
 // 描画用ステータス
@@ -88,7 +89,7 @@ LGFX_Sprite sprite3(&gfx);  //スプライト作成
 
 BluetoothSerial SerialBT;     //Bluetoothシリアルのインスタンス作成
 Sensor startSensor;
-RingbufHandle_t IRbuffer=NULL;
+
 
 std::string IRcmd = "";
   /* シリアルデバッグを有効化するならここ */
@@ -105,9 +106,6 @@ void setup(void)
   //ピンモード設定　IO設定　
   pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);  //リセットボタン
 
-  pinMode(UP_BUTTON_PIN, INPUT_PULLUP);     //上ボタン
-  pinMode(DOWN_BUTTON_PIN, INPUT_PULLUP);   //下ボタン
-  pinMode(SETUP_BUTTON_PIN,INPUT_PULLUP);
   pinMode(LED_BLUE,OUTPUT);                //LED
   pinMode(LED_GREEN,OUTPUT);               //LED
   pinMode(BULTIN_LED,OUTPUT);         //内蔵LEDは２ピン
@@ -135,13 +133,8 @@ void setup(void)
   Serial.printf("Serial2 Initializing...\n");
   delay(3000);
   initializeDFPlayer();                    //DFPlayer初期化
-    Serial.println("Set Volume 20");
-    send_buf[3] = 0x06;
-    send_buf[5] = 0;
-    send_buf[6] = 5;
-    Serial2.write(send_buf,8);
-    delay(200);
- Wire.begin(I2C_SDA,I2C_SCL);            // Start I2C library
+    delay(1000);
+  Wire.begin(I2C_SDA,I2C_SCL);            // Start I2C library
 
   Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );                      //メモリ確認
   Serial.printf("heap_caps_get_largest_free_block(MALLOC_CAP_DMA):%d\n", heap_caps_get_largest_free_block(MALLOC_CAP_DMA) );    //メモリ確認
@@ -202,14 +195,6 @@ void setup(void)
   time_t time_booted;
   struct tm* tm_local;
   char s_time[100];
-
-    Serial.println("Play next");
-    send_buf[3] = 0x01;
-    send_buf[5] = 0;
-    send_buf[6] = 0;
-    Serial2.write(send_buf,8);
-
-    Serial.println("Wait 30sec");
 }
 
 /* ********************************************************* */
@@ -230,15 +215,7 @@ void loop() {
         initializeHistory();        //レースヒストリー初期化
         firstRun = false;           // 初期フラグを解除
         Serial.println("First Run Complete.");
-        delay(3000);
-        Serial.println("Play MP3");
-        
         mp3.volume(5);
-        delay(1000);
-        mp3.randomAll();
-        delay(1000);
-
-
         return;
     }
 
@@ -252,6 +229,8 @@ void loop() {
     if(buttonStates[0].isLongPressed){    // 長押し検知でセットアップモードに遷移
       systemState.config.setupMode = true;
     }
+
+    delay(500);
 
 /*
     if(isSensorTriggered()){
@@ -268,7 +247,23 @@ void loop() {
     //タイマーストップは割り込みなので、まぁあんまり関係ない
     //delay(10);
     if(!systemState.race.raceFlag){
-      ReceiveIR();
+      ReceiveIR(systemState);
+      //Analyze_IR();
+    }
+
+    if(systemState.ir_state.isReceived){
+      if(systemState.ir_state.enterButton){
+        systemState.ir_state.enterButton = false;
+        Serial.println("Enter Button Pressed");
+        stopMP3();
+      }
+      if(systemState.ir_state.playButton){
+          systemState.ir_state.playButton = false;
+        Serial.println("Random Play");
+        mp3.randomAll();
+
+      }
+      systemState.ir_state.isReceived = false;
     }
 
     //スタートボタンを押したら・・
@@ -280,77 +275,95 @@ void loop() {
 /* ********************************************************* */
 /* *********** メインloop関数ここまで **************************/
 /* ********************************************************* */
+void ReceiveIR(SystemState &systemState) {
+    size_t rxSize = 0;
+    rmt_data_t *item = (rmt_data_t *)xRingbufferReceive(IRbuffer, &rxSize, 2000);
 
-void ReceiveIR(){
+    if (item) {
+        uint8_t receive_data[64];
+        uint8_t byte_count = 0;
 
-  uint8_t receive_data[64],byte_count=0;
-  size_t rxSize = 0;
-  rmt_data_t *item = (rmt_data_t *)xRingbufferReceive(IRbuffer, &rxSize,2000);
+        for (uint16_t i = 0; i < rxSize / sizeof(rmt_data_t); i++) {
+            // 赤外線信号をデコード
+            uint8_t byte_data;
+            float duty = (float)item[i].duration1 / item[i].duration0;
+            int8_t bit0 = (duty >= 0.7 && duty <= 1.3) ? 0 :
+                          (duty >= 2.1 && duty <= 3.6) ? 1 : -1;
 
-  if(item){
-    uint16_t t_base = item[0].duration0/8;
-    Serial.printf("%d items received.\n",rxSize/sizeof(rmt_data_t));
-    Serial.printf("T = %d\n",t_base);
+            if (i == 0 || bit0 < 0) continue;
 
-    Serial.printf("#  :{dur0,L,dur1,L} duty   :bit\n");
-    for(uint16_t i=0;i<rxSize/sizeof(rmt_data_t); i++){
-      uint8_t byte_data;
-      float duty = (float)item[i].duration1 / item[i].duration0;
-      int8_t bit0 = 1;
-      if((duty >= 0.7) && (duty <= 1.3)){
-          bit0=0;
-      }
-      else if((duty >= 2.1) &&(duty <= 3.6)){
-          bit0 = 1;
-      }
-      Serial.printf("%3d : {%4d,1,%4d,0} %4.2f : %2d \n",i,item[i].duration0,item[i].duration1,duty,bit0);
+            uint16_t bit_position = (i - 1) % 8;
+            if (bit_position == 0) {
+                byte_data = 0;
+            }
+            byte_data |= bit0 << bit_position;
 
-      if(i == 0) continue;
-      if(bit0 < 0){
-        if(item[i].duration1 !=0){
-          Serial.printf("Receive illegular Signal.\n");
+            if (bit_position == 7) {
+                receive_data[byte_count++] = byte_data;
+            }
         }
-        break;
-      }
 
-    uint16_t bit_possition = (i-1) % 8;
-    if(bit_possition == 0){
-      byte_data = 0;
-    }
-    byte_data += bit0 << bit_possition;
-      if(bit_possition == 7){
-        receive_data[byte_count++] = byte_data;
-        byte_data = 0;
-      }
-    }
-
-    Serial.printf("Decode data:");
-    for(uint8_t i=0; i<byte_count; i++){
-      Serial.printf("%02X \n",receive_data[i]);
-    }
-
-        // 一致するパターンを判定
-        if (byte_count >= 0) {  // パターン比較に必要なデータがある場合のみ
-            if (receive_data[0] == 0x45 && receive_data[1] == 0x35) {
-                printf("[IR] Execute\n");
-            } else if (receive_data[0] == 0x46 && receive_data[1] == 0x34) {
-                printf("[IR] UP BUTTON\n");
-            } else {
-                printf("[IR] No matching pattern\n");
+        // 赤外線データをシステムの状態に反映
+        if (byte_count >= 4) {
+        // receive_data[0] と receive_data[1] の共通部分を確認
+        if (receive_data[0] == 0xEE && receive_data[1] == 0x87) {
+            systemState.ir_state.isReceived = true;
+            systemState.ir_state.lastReceiveTime = millis(); // 受信時刻を記録
+            // receive_data[2] の値に応じて分岐
+            switch (receive_data[2]) {
+                case 0x04:
+                    printf("[IR] Execute\n");
+                    systemState.ir_state.enterButton = true;
+                    break;
+                case 0x08:
+                    printf("[IR] LEFT BUTTON\n");
+                    systemState.ir_state.leftButton = true;
+                    break;
+                case 0x07:
+                    printf("[IR] RIGHT BUTTON\n");
+                    systemState.ir_state.rightButton = true;
+                    break;
+                case 0x0B:
+                    printf("[IR] UP BUTTON\n");
+                    systemState.ir_state.upButton = true;
+                    break;
+                case 0x0D:
+                    printf("[IR] DOWN BUTTON\n");
+                    systemState.ir_state.downButton = true;
+                    break;
+                default:
+                    printf("[IR] Unknown command: 0x%02X\n", receive_data[2]);
+                    break;
             }
         } else {
-            printf("[IR] Insufficient data for pattern matching\n");
+            printf("[IR] Invalid header: 0x%02X 0x%02X\n", receive_data[0], receive_data[1]);
         }
-  
-    printf("\n");
 
-    vRingbufferReturnItem(IRbuffer, (void*) item);
-  }
+        }
+      vRingbufferReturnItem(IRbuffer, (void *)item);
+    } else {
+        systemState.ir_state.isReceived = false; // 信号が受信されていない
+        
+    }
+
+        const unsigned long timeout = 300; // ボタン状態のリセットまでの時間 (ミリ秒)
+        unsigned long currentTime = millis();
+     if (systemState.ir_state.isReceived &&
+        (currentTime - systemState.ir_state.lastReceiveTime > timeout)) {
+        // 各ボタンをリセット
+        systemState.ir_state.isReceived = false;
+        systemState.ir_state.enterButton = false;
+        systemState.ir_state.leftButton = false;
+        systemState.ir_state.rightButton = false;
+        systemState.ir_state.upButton = false;
+        systemState.ir_state.downButton = false;
+
+        printf("[IR] All button states reset due to timeout.\n");
+    }
+  
+
 
 }
-
-
-
 
 
 /* **************************************************

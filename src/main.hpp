@@ -35,12 +35,11 @@
 #define ADC_PIN 4             //ADコンバーターテスト用
 #define BULTIN_LED 2            //ボード内蔵LED
 #define RESET_BUTTON_PIN 36     //reset button
-#define SETUP_BUTTON_PIN 13     //setup button(longpress)
+
 #define START_BUTTON_PIN 27     //start button
 #define LED_BLUE 13
 #define LED_GREEN 15
-#define UP_BUTTON_PIN 12        //setup button up(A)
-#define DOWN_BUTTON_PIN 14      //setup button down(B)
+
 #define LONG_PRESS_THR 1500     //長押しスレッショルドタイム
 #define RW_MODE false           //データ保存用 bool
 #define RO_MODE true            //データ保存用ReadOnly
@@ -84,6 +83,17 @@ struct Button {
     bool isLongPressed = false;       // 長押しされているか
 };
 
+struct IRs {
+    unsigned long lastReceiveTime = 0; // 最後に受信した時刻
+    bool isReceived = false;           // 受信したか
+    bool upButton = false;             //上ボタン
+    bool downButton = false;           //下ボタン
+    bool enterButton = false;          //決定ボタン
+    bool menuButton = false;           //メニューボタン
+    bool leftButton = false;           //左ボタン
+    bool rightButton = false;          //右ボタン
+    bool playButton = false;           //再生ボタン
+};
 
 // レース全体の状態
 struct Race {
@@ -127,6 +137,7 @@ struct SystemState {
     TimerHistory history[8];         // 最大8回分の履歴
     int currentHistoryIndex = 0;     // 最新履歴のインデックス
     Button buttons[5];               // ボタン
+    IRs ir_state;                  // 赤外線受信
 };
 
 
@@ -136,9 +147,6 @@ extern SystemState systemState;
 
 // ゴールセンサーのピン番号を配列で管理
 const int GOAL_SENS_PINS[3] = {GOAL_SENS_1, GOAL_SENS_2, GOAL_SENS_3};
-//ボタンピン設定
-const int buttonPins[3] = {SETUP_BUTTON_PIN, UP_BUTTON_PIN, DOWN_BUTTON_PIN};
-extern Button buttonStates[3];
 
 extern bool SerialDebug;               //シリアルデバッグモード
 
@@ -154,6 +162,7 @@ extern LGFX_Sprite sprite1;     //スプライト作成
 
 extern DFRobotDFPlayerMini mp3;
 
+extern RingbufHandle_t IRbuffer;  //赤外線受信バッファ
 
 extern const lgfx::U8g2font myFont;
 
@@ -200,7 +209,8 @@ void addRaceHistory(unsigned long carTimes[], int raceNumber);
 void endRace();
 
 void initializeHistory();
-void ReceiveIR();
+void ReceiveIR(SystemState &systemState);
+void analyze_IR();
 
 
 // 設定メニュー関連

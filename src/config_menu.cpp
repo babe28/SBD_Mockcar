@@ -69,30 +69,7 @@ void handleConfigMenu() {
 // ボタン操作
     gfx.setCursor(10, 5);
     gfx.setTextColor(TFT_WHITE, TFT_BLACK);
-    if(buttonStates[1].isPressed){
-        gfx.printf("DOWN");
-        systemState.buttons[1].isPressed = false;
-        systemState.config.selectedMenuItem++;
-        isConfigScreenInitialized = false; //一回だけ初期化
-        delay(80);
-    }
-    if(buttonStates[2].isPressed){
-        gfx.printf("UP");
-        systemState.buttons[2].isPressed = false;
-        systemState.config.selectedMenuItem--;
-        isConfigScreenInitialized = false; //一回だけ初期化
-        delay(80);
-    }
-    if(buttonStates[0].isPressed){
-        gfx.printf("SET");
-        menuSelected = true;
-        systemState.buttons[0].isPressed = false;
-        isConfigScreenInitialized = false; //一回だけ初期化
-        delay(80);
-        if(systemState.config.HistoryMode){
-            systemState.config.HistoryMode = false;
-        }
-    }
+
 
     /* メニュー上下限界超えたとき */
     if(systemState.config.selectedMenuItem > 10){

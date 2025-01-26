@@ -10,16 +10,26 @@ DFRobotDFPlayerMini mp3;
 void initializeDFPlayer() {
 
     Serial.println("DFPlayer initializing...");
+    delay(1000); // DFPlayerの初期化には時間がかかる
     if (!mp3.begin(Serial2)) {
         Serial.println("DFPlayer error");
+        delay(2500);
+        if (!mp3.begin(Serial2)) {
+        Serial.println("DFPlayer error 2nd");
         return;
     }else{
         Serial.println("DFPlayer OK");
     }
-    mp3.setTimeOut(500); //タイムアウト設定
-    mp3.volume(20); //音量設定
+        return;
+    }else{
+        Serial.println("DFPlayer OK");
+    }    
+    mp3.setTimeOut(800); //タイムアウト設定
+    mp3.volume(10); //音量設定
     mp3.EQ(DFPLAYER_EQ_NORMAL); //イコライザ設定
+    delay(1000); //初期化待機
     mp3.outputDevice(DFPLAYER_DEVICE_SD); //出力先設定
+    delay(1000); //初期化待機
     mp3.sleep(); //スリープモード
 }
 

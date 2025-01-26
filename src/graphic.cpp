@@ -347,15 +347,6 @@ void drawRaceHistory() {
                 systemState.config.bestTime / 1000,
                 systemState.config.bestTime % 1000);
 
-    if(buttonStates[0].isPressed){
-        gfx.printf("SET");
-        systemState.buttons[0].isPressed = false;
-        delay(80);
-        if(systemState.config.HistoryMode){
-            systemState.config.HistoryMode = false;
-            systemState.config.setupMode = true;
-        }
-    }
 
 }
     /*

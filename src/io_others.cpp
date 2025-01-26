@@ -140,3 +140,88 @@ void enableGoalSensorInterrupts() {
     attachInterrupt(digitalPinToInterrupt(GOAL_SENS_2), goalSensorISR2, FALLING);
     attachInterrupt(digitalPinToInterrupt(GOAL_SENS_3), goalSensorISR3, FALLING);
 }
+
+void Analyze_IR(){
+
+  uint8_t receive_data[64],byte_count=0;
+  size_t rxSize = 0;
+  rmt_data_t *item = (rmt_data_t *)xRingbufferReceive(IRbuffer, &rxSize,2000);
+
+  if(item){
+    uint16_t t_base = item[0].duration0/8;
+    //Serial.printf("%d items received.\n",rxSize/sizeof(rmt_data_t));
+    //Serial.printf("T = %d\n",t_base);
+
+    //Serial.printf("#  :{dur0,L,dur1,L} duty   :bit\n");
+    for(uint16_t i=0;i<rxSize/sizeof(rmt_data_t); i++){
+      uint8_t byte_data;
+      float duty = (float)item[i].duration1 / item[i].duration0;
+      int8_t bit0 = 1;
+      if((duty >= 0.7) && (duty <= 1.3)){
+          bit0=0;
+      }
+      else if((duty >= 2.1) &&(duty <= 3.6)){
+          bit0 = 1;
+      }
+      //Serial.printf("%3d : {%4d,1,%4d,0} %4.2f : %2d \n",i,item[i].duration0,item[i].duration1,duty,bit0);
+
+      if(i == 0) continue;
+      if(bit0 < 0){
+        if(item[i].duration1 !=0){
+          Serial.printf("Receive illegular Signal.\n");
+        }
+        break;
+      }
+
+    uint16_t bit_possition = (i-1) % 8;
+    if(bit_possition == 0){
+      byte_data = 0;
+    }
+    byte_data += bit0 << bit_possition;
+      if(bit_possition == 7){
+        receive_data[byte_count++] = byte_data;
+        byte_data = 0;
+      }
+    }
+
+    Serial.printf("Decode data:");
+    for(uint8_t i=0; i<byte_count; i++){
+      Serial.printf("%02X \n",receive_data[i]);
+    }
+
+        // 一致するパターンを判定
+        if (byte_count >= 4) {  // パターン比較に必要なデータがある場合のみ
+            if (receive_data[0] == 0xEE && receive_data[1] == 0x87 &&
+                receive_data[2] == 0x04 && receive_data[3] == 0x65) {
+                printf("[IR] Execute\n");
+            }
+            if (receive_data[0] == 0xEE && receive_data[1] == 0x87 &&
+                receive_data[2] == 0x08 && receive_data[3] == 0x65) {
+                printf("[IR] LEFT BUTTON\n");
+            }
+            if(receive_data[0] == 0xEE && receive_data[1] == 0x87 &&
+                receive_data[2] == 0x07 && receive_data[3] == 0x65) {
+                printf("[IR] RIGHT BUTTONn\n");
+            }
+            if(receive_data[0] == 0xEE && receive_data[1] == 0x87 &&
+                receive_data[2] == 0x0B && receive_data[3] == 0x65) {
+                    printf("[IR] UP BUTTON\n");
+            }
+            if(receive_data[0] == 0xEE && receive_data[1] == 0x87 &&
+                receive_data[2] == 0x0D && receive_data[3] == 0x65) {
+                    printf("[IR] DOWN BUTTON\n");
+            } 
+         }else {
+            printf("[IR] Insufficient data for pattern matching\n");
+        }
+    printf("\n");
+// MENU BUTTON
+//EE 87 02 65
+//saisei buttton
+//EE 87 04 65
+//再生と決定ボタンは２回送信されている]
+//押しっぱなしでリピート信号が出る
+    vRingbufferReturnItem(IRbuffer, (void*) item);
+  }//if(item)end
+
+}//RECEIVEIR end
