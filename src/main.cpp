@@ -232,8 +232,13 @@ void loop() {
         Serial.println("First Run Complete.");
         delay(3000);
         Serial.println("Play MP3");
-        mp3.randomAll();
+        
         mp3.volume(5);
+        delay(1000);
+        mp3.randomAll();
+        delay(1000);
+
+
         return;
     }
 
