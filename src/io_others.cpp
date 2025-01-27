@@ -28,7 +28,6 @@ void IRAM_ATTR goalSensorISR3() {
 
 // リセットボタン用割り込み
 void IRAM_ATTR handleResetButton() {
-    //systemState.buttons[0].isPressed = true; // リセットボタンが押されたフラグをセット
     resetFlag = true;
 }
 
@@ -96,13 +95,6 @@ bool isSensorTriggered() {
     return true;
 }
 
-// -----------------------
-// 設定ボタン・上・下ボタンのみここでスキャン
-// -----------------------
-void updateButtonStates() {
-    unsigned long currentTime = millis();
-
-}
 
 // ゴールセンサーの割り込みを無効化 今のところ使っていない
 void disableGoalSensorInterrupts() {
@@ -119,8 +111,105 @@ void enableGoalSensorInterrupts() {
 
 
 
-void Analyze_IR(){
 
+void ReceiveIR(SystemState &systemState) {
+    size_t rxSize = 0;
+    rmt_data_t *item = (rmt_data_t *)xRingbufferReceive(IRbuffer, &rxSize, 500);
+
+    if (item) {
+        uint8_t receive_data[64];
+        uint8_t byte_count = 0;
+
+        for (uint16_t i = 0; i < rxSize / sizeof(rmt_data_t); i++) {
+            // 赤外線信号をデコード
+            uint8_t byte_data;
+            float duty = (float)item[i].duration1 / item[i].duration0;
+            int8_t bit0 = (duty >= 0.7 && duty <= 1.3) ? 0 :
+                          (duty >= 2.1 && duty <= 3.6) ? 1 : -1;
+
+            if (i == 0 || bit0 < 0) continue;
+
+            uint16_t bit_position = (i - 1) % 8;
+            if (bit_position == 0) {
+                byte_data = 0;
+            }
+            byte_data |= bit0 << bit_position;
+
+            if (bit_position == 7) {
+                receive_data[byte_count++] = byte_data;
+            }
+        }
+
+        // 赤外線データをシステムの状態に反映
+        if (byte_count >= 4) {
+        // receive_data[0] と receive_data[1] の共通部分を確認
+        if (receive_data[0] == 0xEE && receive_data[1] == 0x87) {
+            systemState.ir_state.isReceived = true;
+            systemState.ir_state.lastReceiveTime = millis(); // 受信時刻を記録
+            // receive_data[2] の値に応じて分岐
+            switch (receive_data[2]) {
+                case 0x5D:
+                    if(SerialDebug){Serial.printf("[IR] Enter Button\n");}
+                    systemState.ir_state.enterButton = true;
+                    break;
+                case 0x08:
+                    if(SerialDebug){printf("[IR] LEFT BUTTON\n");}
+                    systemState.ir_state.leftButton = true;
+                    break;
+                case 0x07:
+                    if(SerialDebug){printf("[IR] RIGHT BUTTON\n");}
+                    systemState.ir_state.rightButton = true;
+                    break;
+                case 0x0B:
+                    if(SerialDebug){printf("[IR] UP BUTTON\n");}
+                    systemState.ir_state.upButton = true;
+                    break;
+                case 0x0D:
+                    if(SerialDebug){printf("[IR] DOWN BUTTON\n");}
+                    systemState.ir_state.downButton = true;
+                    break;
+                case 0x02:
+                    printf("[IR] MENU BUTTON\n");
+                    systemState.ir_state.menuButton = true;
+                    break;
+                case 0x5E:
+                    printf("[IR] PLAY BUTTON\n");
+                    systemState.ir_state.playButton = true;
+                    break;
+                default:
+                    printf("[IR] Unknown command: 0x%02X\n", receive_data[2]);
+                    break;
+            }
+        } else {
+            printf("[IR] Invalid header: 0x%02X 0x%02X\n", receive_data[0], receive_data[1]);
+        }
+
+        }
+      vRingbufferReturnItem(IRbuffer, (void *)item);
+    } else {
+        systemState.ir_state.isReceived = false; // 信号が受信されていない
+        
+    }
+        const unsigned long timeout = 300; // ボタン状態のリセットまでの時間 (ミリ秒)
+        unsigned long currentTime = millis();
+     if (systemState.ir_state.isReceived &&
+        (currentTime - systemState.ir_state.lastReceiveTime > timeout)) {
+        // 各ボタンをリセット
+        systemState.ir_state.isReceived = false;
+        systemState.ir_state.enterButton = false;
+        systemState.ir_state.leftButton = false;
+        systemState.ir_state.rightButton = false;
+        systemState.ir_state.upButton = false;
+        systemState.ir_state.downButton = false;
+
+        Serial.printf("[IR] All button states reset due to timeout.\n");
+    }
+
+}
+
+
+
+void Analyze_IR(){
   uint8_t receive_data[64],byte_count=0;
   size_t rxSize = 0;
   rmt_data_t *item = (rmt_data_t *)xRingbufferReceive(IRbuffer, &rxSize,2000);

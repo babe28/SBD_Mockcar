@@ -28,8 +28,8 @@ void displaySplashScreen() {
     gfx.setTextColor(TFT_WHITE,TFT_BLACK);
     gfx.setTextWrap(false);                   //テキスト折り返し　しない
     gfx.setTextSize(1.3);                     //テキストサイズ
-    printCentering(0,30,"モックカーレースプログラム v0.8a");
-    Serial.print("MOCKCAR RACE PROGRAM v0.8a\nNow Booting\n");
+    printCentering(0,30,"モックカーレースプログラム v0.8c");
+    Serial.print("MOCKCAR RACE PROGRAM v0.8c\nNow Booting\n");
     String messageis = String(on_cycle);        //起動回数
     gfx.setTextSize(1);
     printCentering(0,55,"累積ボード起動回数 " + messageis + "回");
@@ -64,11 +64,21 @@ void displaySplashScreen() {
 }
 
 
+/***************************************************
+ * 描画モード切り替え
+ * History  履歴表示（セットアップメニュー内の想定）
+ * Racing   レース中
+ * └── drawRaceScreen() レース画面描画
+ * Setup    セットアップメニュー
+ * Idle     待機中
+ * └── raceSignalDraw()  レース開始シグナル表示
+ ***************************************************/
+
 void updateDisplay() {//描画を分けるところ。描画関連はまずここ
     static DisplayState previousState = DisplayState::Idle;
     DisplayState currentState;
 
-        //順番で画面の優先順位変わるから変えたほうがいいかも。レーシングが一番うえかも。
+        //順番で画面の優先順位変わる。レーシングが一番上か。
         //ヒストリー表示時＞レース始まる＞ヒストリー抜けるとレースが表示される（裏でセットアップ出てる）
         //これを直したほうがいい。
     if (systemState.config.HistoryMode) {
@@ -89,10 +99,12 @@ void updateDisplay() {//描画を分けるところ。描画関連はまずこ�
 
     switch (currentState) {
         case DisplayState::Idle:
-            drawIdleScreen();       //待機（アイドル）画面描画（下地）
-            if(!systemState.config.setupMode){
-            drawStatusBar(systemState.race.totalRaceCount,"","Ready",systemState.config.bestTime);
+            if(systemState.race.signalDrawing){
+                raceSignalDraw();       //シグナル点灯のほうが優先
+            }else{
+                drawIdleScreen();
             }
+            drawStatusBar(systemState.race.totalRaceCount,"","Ready",systemState.config.bestTime);
             break;
         case DisplayState::Setup:
             handleConfigMenu();      //設定画面描画
@@ -115,7 +127,6 @@ void updateDisplay() {//描画を分けるところ。描画関連はまずこ�
 
 void drawIdleScreen() {     //待機画面
     static bool isIdleScreenInitialized = false; // 初期化済みかどうかを記録
-
     if (!isIdleScreenInitialized) {             //初期化してなければ
         gfx.fillScreen(TFT_BLACK);
                 //初回クリア
@@ -141,7 +152,7 @@ void drawIdleScreen() {     //待機画面
 
         gfx.setFont(&fonts::Font7); // 7セグフォント
         gfx.setTextSize(1.25);
-        gfx.setTextColor(systemState.buttons[0].isPressed ? TFT_CYAN : TFT_WHITE, TFT_BLACK);
+        gfx.setTextColor(resetFlag ? TFT_CYAN : TFT_WHITE, TFT_BLACK);
         gfx.setCursor(126 + i * 5, 15 + i * 66);
         gfx.printf("%02lu.%03lu",lastRace.times[i] / 1000,lastRace.times[i] % 1000); // 前回のタイム表示
         //gfx.printf("00.000"); // 初期タイム表示
@@ -243,8 +254,6 @@ void drawStatusBar(int raceCount, String message, String statusMode, unsigned lo
     gfx.setTextSize(1);
     unsigned long seconds = fastestTime / 1000;
     unsigned long milliseconds = fastestTime % 1000;
-    
-
 
       // 前回更新からの経過時間を計算
     if (currentTime - lastUpdateTime >= updateInterval) {
@@ -285,7 +294,6 @@ void drawStatusBar(int raceCount, String message, String statusMode, unsigned lo
 
 
 void drawRaceHistory() {
-
         setFontNormal();
         printCentering(0,5,"--- Race History (LAST 7) ---");
         gfx.setCursor(20, 22);
@@ -348,6 +356,18 @@ void drawRaceHistory() {
                 systemState.config.bestTime % 1000);
 
 
+    if(systemState.ir_state.enterButton){
+        gfx.printf("BACK");
+        systemState.ir_state.enterButton = false;
+        delay(15);
+        if(systemState.config.HistoryMode){
+            clearDisplay();
+            systemState.config.HistoryMode = false;
+        }
+        //systemState.ir_state.isReceived = false;
+    }
+
+
 }
     /*
     Serial.println("Race History:");
@@ -361,6 +381,63 @@ void drawRaceHistory() {
     }
         */
 
+void raceSignalDraw() {
+    static bool signal_init = true;
+    static unsigned long wait_time = 1000;   // シグナルウェイトタイム（ミリ秒）
+    static unsigned long lastUpdateTime = 0;
+    static int signal_step = 0; // 現在のステップを管理
+    unsigned long currentTime = millis();   // 現在時刻
+
+    if (signal_init) {
+        // 初期化処理（外円描画と消灯赤描画）
+        gfx.setColor(TFT_DARKGRAY);
+        gfx.drawCircle(70, 100, 42); // 外円1
+        gfx.drawCircle(180, 100, 42); // 外円2
+        gfx.drawCircle(290, 100, 42); // 外円3
+        gfx.setColor(gfx.color888(70, 0, 0));
+        gfx.fillCircle(70, 100, 40); // 消灯赤1
+        gfx.fillCircle(180, 100, 40); // 消灯赤2
+        gfx.fillCircle(290, 100, 40); // 消灯赤3
+        signal_init = false;
+        lastUpdateTime = currentTime; // 初期化後のタイムスタンプ
+        return; // 初回は初期化のみ
+    }
+
+    if (systemState.race.signalDrawing) {
+        if (currentTime - lastUpdateTime >= wait_time) {
+            lastUpdateTime = currentTime; // タイムスタンプを更新
+
+            // 各ステップに応じた描画
+            switch (signal_step) {
+                case 0: // 赤1点灯
+                    gfx.setColor(TFT_RED);
+                    gfx.fillCircle(70, 100, 40);
+                    break;
+                case 1: // 赤2点灯
+                    gfx.fillCircle(180, 100, 40);
+                    break;
+                case 2: // 赤3点灯
+                    gfx.fillCircle(290, 100, 40);
+                    break;
+                case 3: // 緑点灯
+                    gfx.setColor(gfx.color888(0, 153, 68));
+                    gfx.fillCircle(70, 100, 40);
+                    gfx.fillCircle(180, 100, 40);
+                    gfx.fillCircle(290, 100, 40);
+                    break;
+                default:
+                    return; // すべての処理が完了したら終了
+            }
+
+            signal_step++; // 次のステップへ進む
+            if (signal_step > 3) {
+                systemState.race.signalDrawing = false; // 描画終了
+                signal_step = 0; // ステップをリセット
+                signal_init = false; // 初期化フラグをリセット
+            }
+        }
+    }
+}
 
 
 /* ********************************************************* */
@@ -429,34 +506,4 @@ void updateMovingBars() {
             gfx.fillRect(barX[i], barPositions[i], barWidth, barHeight,TFT_BLACK);
         }
     }
-}
-
-void raceSignal() {
-    static bool signal_init = false;
-    static unsigned long wait_time = 1.0;   //シグナルウェイトタイム
-    unsigned long currentTime = millis();   //描画タイム用
-    unsigned long lastUpdateTime;
-    unsigned long beforewaitTime = 0;
-
-    if(!signal_init){
-        gfx.setColor(TFT_DARKGRAY);
-        gfx.drawCircle(70,100,42); //外円1
-        gfx.drawCircle(180,100,42); //外円2
-        gfx.drawCircle(290,100,42); //外円3
-        gfx.setColor(gfx.color888(60,0,0));
-        gfx.fillCircle(70,100,40); //消灯赤
-        gfx.fillCircle(180,100,40); //消灯赤
-        gfx.fillCircle(290,100,40); //消灯赤
-        signal_init = true;
-    }
-    //if() 何かしら判定して
-    
-    if(millis() - lastUpdateTime > wait_time){
-        lastUpdateTime = millis();
-    gfx.setColor(gfx.color888(0,153,68));
-    gfx.fillCircle(70,100,40);
-
-
-    }
-
 }

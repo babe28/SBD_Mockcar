@@ -66,9 +66,37 @@ void handleConfigMenu() {
     int arrowBaseYY = 42 + systemState.config.selectedMenuItem * 16;
     gfx.fillTriangle(arrowBaseX, arrowBaseY, arrowBaseX - 10, arrowBaseY + 5, arrowBaseX, arrowBaseY + 10, TFT_RED);
     gfx.fillTriangle(arrowBaseXX,arrowBaseYY,arrowBaseXX + 10,arrowBaseYY+ 5,arrowBaseXX,arrowBaseYY + 10, TFT_RED);
-// ボタン操作
+    // ボタン操作
     gfx.setCursor(10, 5);
     gfx.setTextColor(TFT_WHITE, TFT_BLACK);
+
+
+
+    if(systemState.ir_state.upButton){
+        gfx.printf("UP");
+        systemState.ir_state.upButton = false;
+        systemState.config.selectedMenuItem--;
+        isConfigScreenInitialized = false; //一回だけ初期化
+        //systemState.ir_state.isReceived = false;
+    }
+    if(systemState.ir_state.downButton){
+        gfx.printf("DOWN");
+        systemState.ir_state.downButton = false;
+        systemState.config.selectedMenuItem++;
+        isConfigScreenInitialized = false; //一回だけ初期化
+        //systemState.ir_state.isReceived = false;
+    }
+    if(systemState.ir_state.enterButton){
+        gfx.printf("SET");
+        menuSelected = true;
+        systemState.ir_state.enterButton = false;
+        isConfigScreenInitialized = false; //一回だけ初期化
+        delay(15);
+        if(systemState.config.HistoryMode){
+            systemState.config.HistoryMode = false;
+        }
+        //systemState.ir_state.isReceived = false;
+    }
 
 
     /* メニュー上下限界超えたとき */
@@ -123,9 +151,9 @@ void handleConfigMenu() {
 
     }
     
-    delay(50); // 入力遅延
 
-    
+
+    delay(50); // 入力遅延
 
 }
 

@@ -32,9 +32,7 @@
 #define GOAL_SENS_3 34        //GOAL模擬ボタン3(ignore_PULLUP)
 
 #define BULTIN_LED 2            //ボード内蔵LED
-#define RESET_BUTTON_PIN 39     //reset button
-//VP=36 , VN=39こっち
-
+#define RESET_BUTTON_PIN 14     //reset button
 #define START_BUTTON_PIN 27     //start button
 #define LED_BLUE 13
 #define LED_GREEN 15
@@ -71,8 +69,8 @@ struct TimerHistory {
 // センサー状態を管理
 struct Sensor {
     unsigned long lastTriggerTime = 0;  // 最後にトリガーされた時刻
-    bool isActive = false;              // センサーがアクティブか
-    bool isSense = false;               //きたかどうか
+    volatile bool isActive = false;              // センサーがアクティブか
+    volatile bool isSense = false;               //きたかどうか
 };
 
 // ボタン状態を管理
@@ -98,6 +96,9 @@ struct IRs {
 struct Race {
     bool raceFlag = false;           // レース中フラグ
     bool resetFlag = false;         //追加　リセットフラグ
+    bool signalFlag = false;        //追加　シグナルフラグ
+    bool signalDrawing = false;     //追加　シグナル描画フラグ
+    bool bgmFlag = false;           //追加　BGMフラグ
     unsigned long startTime = 0;     // スタート時刻
     int goalCount = 0;               // ゴールした車両数
     Timer timers[3];                 // 各車両のタイマー
@@ -135,11 +136,9 @@ struct SystemState {
     Config config;                   // 設定関連
     TimerHistory history[8];         // 最大8回分の履歴
     int currentHistoryIndex = 0;     // 最新履歴のインデックス
-    Button buttons[5];               // ボタン
+    Button buttons[4];               // ボタン
     IRs ir_state;                  // 赤外線受信
 };
-
-
 
 // グローバルシステム状態
 extern SystemState systemState;
@@ -177,12 +176,11 @@ void clearDisplay();
 void setFontNormal(double fontSize = 1.0);     //フォントサイズいける色も一応初期化される
 void setFontJapan(double fontSize = 1.0);
 void printCentering(int x,int y,String printText);
-void raceSignal();              //レースシグナル
 
+void raceSignalDraw();
 
 //io_others.cpp
 void stopTimer(int timerId);
-void updateButtonStates();
 bool isSensorTriggered();
 void disableGoalSensorInterrupts();
 void enableGoalSensorInterrupts();
@@ -190,11 +188,18 @@ void ReceiveIRTask(void *pvParameters);
 
 //mp3_player.cpp
 void initializeDFPlayer();
+uint16_t calculateChecksum(uint8_t *data, size_t length);
+void sendCommand(uint8_t command, uint16_t parameter);
 void playMP3(int fileNumber);
 void stopMP3();
 void pauseMP3();
 void resumeMP3();
 void setVolumeMP3(int volume);
+bool checkForACK(unsigned long timeout);
+bool validateACK(uint8_t *data, size_t length);
+void isPlaying();
+void checkDFPlayerResponse();
+
 
 //main.cpp
 void checkStartSensor();            // スタートセンサーの監視
