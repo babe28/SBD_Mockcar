@@ -263,15 +263,14 @@ void drawStatusBar(int raceCount, String message, String statusMode, unsigned lo
             gfx.fillRect(x, y, screenWidth, barHeight, TFT_SKYBLUE);
             gfx.setTextColor(TFT_BLACK, TFT_SKYBLUE);
             gfx.setCursor(5, y + 2);
-            gfx.printf("READY.. FASTEST: %02lu.%03lu <Sens:%d><Cnt:%d>", seconds, milliseconds, 256,raceCount);
-            //gfx.printf("LUX: %4.2f  Millis :%d mm",sens_Lux,start_Sensor.getDistance());
+            gfx.printf("READY.. FASTEST: %02lu.%03lu <RACECOUNT:%d>", seconds, milliseconds,raceCount);
             
         } else if (statusMode == "Race") {
             gfx.fillRect(x, y, screenWidth, barHeight, TFT_VIOLET);
             gfx.setTextColor(TFT_BLACK, TFT_VIOLET);
             gfx.setCursor(5, y + 2);
             //gfx.printf("COUNT:%d FASTEST: %02lu.%03lu <%s>", raceCount, seconds, milliseconds, message.c_str());
-            gfx.printf("RACEMODE<%d> / FASTEST: %02lu.%03lu <%d>",raceCount, seconds, milliseconds, 256);
+            gfx.printf("START! <RACECOUNT:%d> / FASTEST: %02lu.%03lu",raceCount, seconds, milliseconds);
         } else if (statusMode == "Setup") {
             gfx.fillRect(x, y, screenWidth, barHeight, TFT_DARKGRAY);
             gfx.setTextColor(TFT_WHITE, TFT_DARKGRAY);
@@ -291,7 +290,6 @@ void drawStatusBar(int raceCount, String message, String statusMode, unsigned lo
         
     }
 }
-
 
 void drawRaceHistory() {
         setFontNormal();
@@ -414,13 +412,15 @@ void raceSignalDraw() {
                     gfx.fillCircle(70, 100, 40);
                     break;
                 case 1: // 赤2点灯
+                    gfx.setColor(TFT_RED);
                     gfx.fillCircle(180, 100, 40);
                     break;
                 case 2: // 赤3点灯
+                    gfx.setColor(TFT_RED);
                     gfx.fillCircle(290, 100, 40);
                     break;
                 case 3: // 緑点灯
-                    gfx.setColor(gfx.color888(0, 153, 68));
+                    gfx.setColor(gfx.color888(0, 153, 38));
                     gfx.fillCircle(70, 100, 40);
                     gfx.fillCircle(180, 100, 40);
                     gfx.fillCircle(290, 100, 40);

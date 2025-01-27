@@ -26,6 +26,10 @@ int raceTotalCount = 0;               //起動後何回レースしたか
 RingbufHandle_t buffer = NULL;        // IR用リングバッファ
 RingbufHandle_t IRbuffer=NULL;        //赤外線受信バッファ
 Button buttonStates[3];               //ボタン設定用
+uint8_t REG_table[7];                 //時間テーブルRTC
+const char *week[] = {"SUN","MON","TUE","WED","THR","FRI","SAT"};
+struct tm timeinfo;                   //内蔵RTC用時刻構造体
+
 
 // 描画用ステータス
 unsigned long lastUpdateTime = 0;     //前回更新時刻格納用
@@ -65,7 +69,7 @@ SystemState systemState;
       // PSRAMメモリ割当の設定;
       cfg.use_psram = 1;      // 0=PSRAM不使用 / 1=PSRAMとSRAMを半々使用 / 2=全部PSRAM使用;
       // 出力信号の振幅の強さを設定;
-      cfg.output_level = 140; // 初期値128
+      cfg.output_level = 130; // 初期値128
       // ※ GPIOに保護抵抗が付いている等の理由で信号が減衰する場合は数値を上げる。;
       // ※ M5StackCore2 はGPIOに保護抵抗が付いているため 200 を推奨。;
       // 彩度信号の振幅の強さを設定;
@@ -84,14 +88,12 @@ SystemState systemState;
 LGFX gfx;                   //インスタンス名gfx
 LGFX_Sprite sprite1(&gfx);  //スプライト作成
 
-
 BluetoothSerial SerialBT;     //Bluetoothシリアルのインスタンス作成
-Sensor startSensor;
+Sensor startSensor;       //スタートセンサー
 
-
-std::string IRcmd = "";
   /* シリアルデバッグを有効化するならここ */
 bool SerialDebug = true;                        //シリアルデバッグモード
+
 
 /* ********************************************************* */
 /* *********** ボードセットアップここから **********************/
@@ -119,73 +121,64 @@ void setup(void)
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_1), goalSensorISR1, FALLING);
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_2), goalSensorISR2, FALLING);
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_3), goalSensorISR3, FALLING);
-  //attachInterrupt(digitalPinToInterrupt(RESET_BUTTON_PIN),handleResetButton,FALLING);
+  //attachInterrupt(digitalPinToInterrupt(RESET_BUTTON_PIN),handleResetButton,FALLING); //不安定だから無効化
 
-  Serial.begin(115200);                   // Start Serial at 115200bps
-  Serial2.begin(9600, SERIAL_8N1, 18, 19);
-  Serial.printf("Serial2 Initializing...\n");
-  Wire.begin(I2C_SDA,I2C_SCL);            // Start I2C library
+  Serial.begin(115200);                         // Start Serial at 115200bps(デバッグ)
+  Serial2.begin(9600, SERIAL_8N1, 18, 19);      // Start Serial2 at 9600bps（DFPlayer Mini）
+  printf("Serial2 Initializing...\n");
+  Wire.begin(I2C_SDA,I2C_SCL);                  // Start I2C library
 
-  Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );                      //メモリ確認
-  Serial.printf("heap_caps_get_largest_free_block(MALLOC_CAP_DMA):%d\n", heap_caps_get_largest_free_block(MALLOC_CAP_DMA) );    //メモリ確認
-  gfx.init();           // Start LovyanGFX
-  gfx.fillScreen(TFT_BLACK);
-  sprite1.setPsram(true);
-
-  SerialBT.begin("MockcarRACETimer");               //この名前でBluetoothの一覧に出てくる
-  Serial.println("Bluetooth Start!");
-  Serial.println("I/O complete");
-
-  //初期化もろもろ
-  systemState.race.raceFlag = false;          //レース中判定
-  systemState.race.startTime = 0;             //スタートタイム保持
-  systemState.race.goalCount = 0;             //ゴールカウンター（１レース毎）
-  int boardOPmode = 1;                            //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
-  
-    for (int i = 0; i < 3; i++) {
-        systemState.race.timers[i].stopTime = 0;    //レーン毎の停止時間
-        systemState.race.timers[i].isTiming = false;    //タイマー稼働中判定
-        systemState.race.goalSensors[i].isActive = false;     //ゴールセンサーアクティブ判定
-        systemState.race.goalSensors[i].lastTriggerTime = 0;  //ゴールセンサーの時間
-    }
-  systemState.config.setupMode = false;       //設定モードにいるか判定
-  systemState.config.selectedMenuItem = 0;    //設定モードのメニュー選択用
-
-  rmt_config_t rmtConfig;                         //赤外線受信クラス定義
-  rmtConfig.rmt_mode = RMT_MODE_RX;               //受信モード
-  rmtConfig.channel = RMT_CHANNEL_0;              //０で初期化
-  rmtConfig.clk_div = 80;                         //RMTのクロック分周
-  rmtConfig.gpio_num = GPIO_NUM_21;               //
-  rmtConfig.mem_block_num = 4;                     // メモリブロック数(1-255:1ブロックあたり64ペアの送受信)
-
-  rmtConfig.rx_config.filter_en = true;           //フィルターEnable
-  rmtConfig.rx_config.filter_ticks_thresh = 100;  //1ticks 255us 以下の信号を除外
-  rmtConfig.rx_config.idle_threshold = 10000;     //10000us以上の信号を除外
-
-  rmt_config(&rmtConfig);
+  rmt_config_t rmtConfig;                           //赤外線受信クラス定義
+  rmtConfig.rmt_mode = RMT_MODE_RX;                 //受信モード
+  rmtConfig.channel = RMT_CHANNEL_0;                //CHANNEL 0で初期化
+  rmtConfig.clk_div = 80;                           //RMTのクロック分周
+  rmtConfig.gpio_num = GPIO_NUM_21;                 //赤外線受信ポート
+  rmtConfig.mem_block_num = 4;                      //メモリブロック数(1-255:1ブロックあたり64ペアの送受信) 1だとオーバーフローする
+  rmtConfig.rx_config.filter_en = true;             //フィルターEnable
+  rmtConfig.rx_config.filter_ticks_thresh = 100;    //1ticks 255us 以下の信号を除外
+  rmtConfig.rx_config.idle_threshold = 10000;       //10000us以上の信号を除外
+  rmt_config(&rmtConfig);                           //RMT設定
   rmt_driver_install(rmtConfig.channel,2048,0);     //RMT Ring Buffer 1024byte
   rmt_get_ringbuf_handle(RMT_CHANNEL_0, &IRbuffer); //リングバッファ設定
   rmt_rx_start(RMT_CHANNEL_0, true);
 
 
-  //VL6180Xセンサー初期化してたところ
+  gfx.init();                      // Start LovyanGFX
+  gfx.fillScreen(TFT_BLACK);       // 画面初期化
+  sprite1.setPsram(true);          // PSRAMにスプライトを配置
+
+  SerialBT.begin("MockcarRACETimer");               //この名前でBluetoothの一覧に出てくる
+  Serial.println("Bluetooth Start!");
+  Serial.println("I/O complete");
+
+  //変数初期化
+  int boardOPmode = 1;                        //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
+
+  systemState.race.startTime = 0;             //スタートタイム初期化
+  for (int i = 0; i < 3; i++) {
+      systemState.race.timers[i].stopTime = 0;              //レーン毎の停止時間
+      systemState.race.timers[i].isTiming = false;          //タイマー稼働中判定
+      systemState.race.goalSensors[i].isActive = false;     //ゴールセンサーアクティブ判定
+      systemState.race.goalSensors[i].lastTriggerTime = 0;  //ゴールセンサーの時間
+  }
+  systemState.config.setupMode = false;       //設定モードにいるか判定
+  systemState.config.selectedMenuItem = 0;    //設定モードのメニュー選択用
 
   SerialBT.println("setup function finished.");
   Serial.println("setup function finished");
   
-  resetRaceState();               //変数初期化
-  delay(100);                     //
-  eeprom_initialize();              //ブート回数記録・EEPROM読み出し/書き込み
-  displaySplashScreen();          //起動時画面読み込み
+  resetRaceState();                   //変数初期化
+  delay(100);                         //
+  eeprom_initialize();                //ブート回数記録・EEPROM読み出し/書き込み
+  //rtcTimeSet();                     //RTC強制時間設定
+  displaySplashScreen();              //起動時画面読み込み
 
   Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );
   Serial.printf("heap_caps_get_largest_free_block(MALLOC_CAP_DMA):%d\n", heap_caps_get_largest_free_block(MALLOC_CAP_DMA) );
 
   delay(500);                    //デバッグ用　取ってOK
   digitalWrite(BULTIN_LED,LOW);  //内蔵LED OFF
-  time_t time_booted;
-  struct tm* tm_local;
-  char s_time[100];
+
 }
 
 /* ********************************************************* */
@@ -201,13 +194,16 @@ void loop() {
     // 起動時の初期化処理
     if (firstRun) {
         resetRaceState();           // レース状態の初期化・変数の初期化
-        gfx.fillScreen(TFT_BLACK);  
-        drawIdleScreen();           // 初期画面を描画
         initializeHistory();        //レースヒストリー初期化
-        initializeDFPlayer();                    //DFPlayer初期化
-        firstRun = false;           // 初期フラグを解除
-        Serial.println("First Run Complete.");
+        initializeDFPlayer();       //DFPlayer初期化
+        gfx.fillScreen(TFT_BLACK);  
+        drawIdleScreen();               //初期画面を描画
+        rtc_read();                     //RTC読み込みして
+        setInternalRTC();               //内蔵RTC外部RTCの時刻をセット
         digitalWrite(LED_GREEN,LOW);
+        firstRun = false;               //初期フラグを解除
+        Serial.println("First Run Complete.");
+
     }
 
     digitalWrite(LED_GREEN,HIGH);   //LED点灯（メインルーチン速度測定用）
@@ -220,19 +216,11 @@ void loop() {
     }
     digitalWrite(LED_GREEN,LOW);   //LED点灯（メインルーチン速度測定用）
 
-/*
-    if(isSensorTriggered()){
-      if (SerialDebug)
-      {
-      Serial.println("sensor TRIG!!");
-      }
-      
-      startRace();
-    }
-*/
+
+
       //printf("reset=%d",digitalRead(RESET_BUTTON_PIN));
 
-      delay(50);
+      delay(5);
 
     if(!systemState.race.raceFlag){
       ReceiveIR(systemState);
@@ -245,16 +233,43 @@ void loop() {
         if(!systemState.config.setupMode){
           handleConfigMenu();
           systemState.config.setupMode = true;
+
         }
       }
-
       if(systemState.ir_state.playButton){
         systemState.ir_state.playButton = false;
         stopMP3();
-        systemState.ir_state.isReceived = false;
-    }
+      }
+      if(systemState.ir_state.rightButton){
+        systemState.ir_state.rightButton = false;
+
+      }
+      if(systemState.ir_state.leftButton){
+        systemState.ir_state.leftButton = false;
+
+      }
+    systemState.ir_state.isReceived = false;
     }
 
+
+
+      checkReadyButton(); //スタート(レディ）ボタンが押されたかどうか
+/*
+    Serial.printf("STARTSENSOR:%d\n",digitalRead(START_SENS));
+    Serial.printf("GOALSENSOR1:%d\n",digitalRead(GOAL_SENS_1));
+    Serial.printf("GOALSENSOR2:%d\n",digitalRead(GOAL_SENS_2));
+    Serial.printf("GOALSENSOR3:%d\n",digitalRead(GOAL_SENS_3));
+
+    delay(100);
+    */
+}
+
+
+/* ********************************************************* */
+/* *********** メインloop関数ここまで **************************/
+/* ********************************************************* */
+
+void checkReadyButton(){
     static bool lastButtonState = HIGH;
     static unsigned long lastTriggerTime = 0;
     int buttonState = digitalRead(START_BUTTON_PIN);
@@ -266,31 +281,18 @@ void loop() {
         }
 
         if(!systemState.race.bgmFlag){
-          playMP3(0);
+          playMP3(0); //曲が終わって再生が止まるとbgmFlagがtrueのままで再生できなくなるから、対処すべし
         }
         systemState.race.signalDrawing = true;
         lastTriggerTime = millis();
       }
     }
-/*
-    Serial.printf("STARTSENSOR:%d\n",digitalRead(START_SENS));
-    Serial.printf("GOALSENSOR1:%d\n",digitalRead(GOAL_SENS_1));
-    Serial.printf("GOALSENSOR2:%d\n",digitalRead(GOAL_SENS_2));
-    Serial.printf("GOALSENSOR3:%d\n",digitalRead(GOAL_SENS_3));
 
-
-    delay(100);
-    */
 }
 
 
-/* ********************************************************* */
-/* *********** メインloop関数ここまで **************************/
-/* ********************************************************* */
-
-
 /***********************************
- * ステート変更
+ * ステート変更　メインループからのちほど避難させる
  ************************************/
 
 void systemStateChange(){
@@ -336,7 +338,7 @@ void startRace() {
     if(systemState.config.setupMode){           //もし設定画面なら
         systemState.config.setupMode = false;     //設定画面を抜ける
     }
-
+  
     // レース開始処理
     systemState.race.startTime = millis();
     systemState.race.raceFlag = true;
@@ -348,6 +350,10 @@ void startRace() {
         systemState.race.timers[i].stopTime = 0; // 停止時間をリセット
         Serial.printf("[DEBUG] Timer %d started.\n", i + 1);
     }
+
+    systemState.race.signalDrawing = false; //シグナル描画フラグをOFF
+    systemState.race.signalFlag = false;    //シグナルフラグをOFF
+
 
     Serial.println("Race started!");
 
@@ -479,3 +485,90 @@ void sendBluetoothData() {
 
 }
 
+void rtc_initialize(){
+  //RTC初期化
+
+  Wire.beginTransmission(DS1307_ADDRESS);
+  Wire.write(0x00); //START_REGISTOR
+  delay(1);
+  Wire.endTransmission();
+  Wire.requestFrom(DS1307_ADDRESS,7);
+  for(int i=0;i<=7;i++){
+    REG_table[i]=Wire.read();
+    delay(1);
+  }
+  Serial.printf("DS1307 is 20%02X/%02X/%02X (%s) %02X:%02X:%02X\n",
+                REG_table[6],              // 年 (16進数形式)
+                REG_table[5],              // 月 (16進数形式)
+                REG_table[4],              // 日 (16進数形式)
+                week[REG_table[3]],    // 曜日 (インデックス調整)
+                REG_table[2],              // 時 (16進数形式)
+                REG_table[1],              // 分 (16進数形式)
+                REG_table[0]);             // 秒 (16進数形式)
+}
+
+void rtcTimeSet(){
+  //DS1307RTC 強制時間設定
+  Wire.beginTransmission(DS1307_ADDRESS);
+  delay(1);
+  Wire.write(0x00); //START_REGISTOR
+  Wire.write(0x00); //秒
+  Wire.write(0x14); //分
+  Wire.write(0x08); //時
+  Wire.write(0x02); //週(SUN 00 MON 01 TUE 02)
+  Wire.write(0x28); //日
+  Wire.write(0x01); //月
+  Wire.write(0x25); //年 20xx年
+  delay(1);
+  Wire.endTransmission();
+}
+
+void rtc_read(){
+  //RTC読み出し
+  Wire.beginTransmission(DS1307_ADDRESS);
+  Wire.write(0x00); //START_REGISTOR
+  Wire.endTransmission();
+  Wire.requestFrom(DS1307_ADDRESS,7);
+  REG_table[0] = Wire.read();
+  REG_table[1] = Wire.read();
+  REG_table[2] = Wire.read();
+  REG_table[3] = Wire.read();
+  REG_table[4] = Wire.read();
+  REG_table[5] = Wire.read();
+  REG_table[6] = Wire.read();
+  Serial.printf("20%02X/%02X/%02X (%s) %02X:%02X:%02X\n",
+                REG_table[6],              // 年 (16進数形式)
+                REG_table[5],              // 月 (16進数形式)
+                REG_table[4],              // 日 (16進数形式)
+                week[REG_table[3]],    // 曜日 (インデックス調整)
+                REG_table[2],              // 時 (16進数形式)
+                REG_table[1],              // 分 (16進数形式)
+                REG_table[0]);             // 秒 (16進数形式)
+}
+
+void setInternalRTC() {
+    timeinfo.tm_year = bcdToDec(REG_table[6]) + 2000 - 1900; // 年（1900年基準）
+    timeinfo.tm_mon = bcdToDec(REG_table[5]) - 1;            // 月（0-11）
+    timeinfo.tm_mday = bcdToDec(REG_table[4]);               // 日
+    timeinfo.tm_hour = bcdToDec(REG_table[2]);               // 時
+    timeinfo.tm_min = bcdToDec(REG_table[1]);                // 分
+    timeinfo.tm_sec = bcdToDec(REG_table[0]);                // 秒
+    timeinfo.tm_isdst = -1;                                  // サマータイム情報を無効化
+
+    struct timeval now = {mktime(&timeinfo), 0};
+    settimeofday(&now, NULL); // ESP32の内蔵RTCに時刻を設定
+}
+
+int bcdToDec(uint8_t val) {
+    return ((val >> 4) * 10) + (val & 0x0F);
+}
+
+void readInternalRTC() {
+    if (!getLocalTime(&timeinfo)) {
+        Serial.println("Failed to obtain time");
+        return;
+    }
+    Serial.printf("Internal RTC: %04d/%02d/%02d %02d:%02d:%02d\n",
+                  timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                  timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+}

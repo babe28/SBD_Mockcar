@@ -75,6 +75,7 @@ void checkResetButton() {
     static unsigned long lastTriggerTime = 0;
     if(digitalRead(RESET_BUTTON_PIN)==LOW){
         resetFlag = true;
+        systemState.race.resetFlag = true;
     }
 
     if(resetFlag && (millis() - lastTriggerTime > 250)){
@@ -92,7 +93,7 @@ void checkResetButton() {
 
 //センサーをポーリング  ここはセンサーの値を取得するだけ
 bool isSensorTriggered() {
-    return true;
+    return false;
 }
 
 

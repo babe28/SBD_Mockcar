@@ -17,8 +17,8 @@ void initializeDFPlayer() {
     Serial.println("DFPlayer initializing...");
     sendCommand(0x0C,0); //Reset DFPlayer
 
-    delay(1000); // DFPlayerの初期化には時間がかかる
-    if(checkForACK(1000)){
+    delay(2000); // DFPlayerの初期化には時間がかかる
+    if(checkForACK(1500)){
         Serial.println("DFPlayer initialized!");
     }
 

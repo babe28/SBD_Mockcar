@@ -13,6 +13,12 @@ void handleConfigMenu() {
     }
     unsigned long currentTime = millis();   //描画タイム用
     static bool menuSelected = false;
+
+    if (!getLocalTime(&timeinfo)) {
+        gfx.print("Failed to obtain time");
+        
+    }
+
     //clearDisplay();                     //メイン画面だけ初期化
     setFontNormal();
     // ヘッダー表示
@@ -31,21 +37,24 @@ void handleConfigMenu() {
     gfx.setCursor(baseX + 8, baseY);
     gfx.printf("SENSOR GAIN (S): %.2f", systemState.config.sensorGainStart);    //項目番号１
     gfx.setCursor(baseX + 8, baseY + 16);
-    gfx.printf("SENSOR GAIN (G): %.2f", systemState.config.sensorGainGoal);     //項目番号２
-    //gfx.setCursor(baseX + 8, baseY + 32);
-    //gfx.printf("VIEW RACE HISTORY");                                            //項目番号３
+    gfx.printf("BGM VOLUME < %d >",systemState.config.bgmVolume);                                               //項目番号２
+    gfx.setCursor(baseX + 8, baseY + 32);
+    gfx.printf("BGM DUCKING? %s",systemState.config.bgmDucking ? "YES" : "NO");                                            //項目番号３
     //gfx.setCursor(baseX + 8, baseY + 48);
-    //gfx.printf("SEND RACE HISTORY(BT)");                                           //項目番号４
+    //gfx.printf("DATE SET)");                                           //項目番号４
     gfx.setCursor(baseX + 8, baseY + 64);
-    gfx.printf("VIEW RACE HISTORY");                                        //項目番号５
+    gfx.printf("VIEW RACE HISTORY");                                                //項目番号５
     gfx.setCursor(baseX + 8, baseY + 80);
-    gfx.printf("SEND RACE HISTORY(Bluetooth)");                                        //項目番号６
+    gfx.printf("SEND RACE HISTORY(Bluetooth)");                                     //項目番号６
     gfx.setCursor(baseX + 8, baseY + 96);
     gfx.printf("CLEAR FASTEST LAP");                                        //項目番号７
     gfx.setCursor(baseX + 8, baseY + 112);
     gfx.printf("INITIALIZE");                                        //項目番号８
-    //gfx.setCursor(baseX + 8, baseY + 128);
+    gfx.setCursor(baseX + 8, baseY + 128);
     //gfx.printf("RECALL DEFAULT SETTINGS");                                        //項目番号９
+    gfx.printf("RTC SET: %04d/%02d/%02d %02d:%02d:%02d\n",
+                  timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                  timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
     gfx.setCursor(baseX + 8, baseY + 144);
     gfx.printf("RECALL DEFAULT SETTINGS");                                        //項目番号１０
     gfx.setTextColor(TFT_RED,TFT_BLACK);
@@ -151,6 +160,7 @@ void handleConfigMenu() {
 
     }
     
+
 
 
     delay(50); // 入力遅延

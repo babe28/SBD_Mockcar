@@ -55,6 +55,14 @@
 
 #define VL6180X_ADDRESS 0x29
 #define DS1307_ADDRESS 0x68
+#define RTC_REGISTER_SECOND 0x00
+#define RTC_REGISTER_MINUTE 0x01
+#define RTC_REGISTER_HOUR 0x02
+#define RTC_REGISTER_WEEK 0x03
+#define RTC_REGISTER_DAY 0x04
+#define RTC_REGISTER_MONTH 0x05
+#define RTC_REGISTER_YEAR 0x06
+#define RTC_REGISTER_CONTROL 0x07
 
 // タイマー状態を管理
 struct Timer {
@@ -162,6 +170,9 @@ extern RingbufHandle_t IRbuffer;  //赤外線受信バッファ
 
 extern const lgfx::U8g2font myFont;
 extern volatile bool resetFlag;                  //リセットボタン押されたかどうかの判定
+extern uint8_t REG_table[7];
+extern const char *week[];
+extern struct tm timeinfo;
 
 //graphic.cpp
 void displaySplashScreen();     //起動時の画面処理
@@ -211,11 +222,16 @@ void startRace();
 void resetTimers();
 void addRaceHistory(unsigned long carTimes[], int raceNumber);
 void endRace();
-
+void checkReadyButton();
 void initializeHistory();
 void ReceiveIR(SystemState &systemState);
 void analyze_IR();
-
+void rtcTimeSet();
+void rtc_initialize();
+void rtc_read();
+void setInternalRTC();
+int bcdToDec(uint8_t val);
+void readInternalRTC();
 
 // 設定メニュー関連
 void handleConfigMenu();       // 設定メニューの管理
