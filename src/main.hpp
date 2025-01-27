@@ -20,9 +20,8 @@
 #include <Preferences.h>            //内蔵EEPROM保存用
 #include <Wire.h>                   //I2C
 #include <driver/rmt.h>             //赤外線モジュール用
-#include <time.h>                   //
+#include <time.h>                   
 
-#include <DFRobotDFPlayerMini.h>    //シリアルは9600ボー
 
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
@@ -32,9 +31,9 @@
 #define GOAL_SENS_2 35        //GOAL模擬ボタン2(ignore_PULLUP)
 #define GOAL_SENS_3 34        //GOAL模擬ボタン3(ignore_PULLUP)
 
-#define ADC_PIN 4             //ADコンバーターテスト用
 #define BULTIN_LED 2            //ボード内蔵LED
-#define RESET_BUTTON_PIN 36     //reset button
+#define RESET_BUTTON_PIN 39     //reset button
+//VP=36 , VN=39こっち
 
 #define START_BUTTON_PIN 27     //start button
 #define LED_BLUE 13
@@ -160,11 +159,10 @@ public:
 extern LGFX gfx;                //インスタンス名gfx
 extern LGFX_Sprite sprite1;     //スプライト作成
 
-extern DFRobotDFPlayerMini mp3;
-
 extern RingbufHandle_t IRbuffer;  //赤外線受信バッファ
 
 extern const lgfx::U8g2font myFont;
+extern volatile bool resetFlag;                  //リセットボタン押されたかどうかの判定
 
 //graphic.cpp
 void displaySplashScreen();     //起動時の画面処理
@@ -188,6 +186,7 @@ void updateButtonStates();
 bool isSensorTriggered();
 void disableGoalSensorInterrupts();
 void enableGoalSensorInterrupts();
+void ReceiveIRTask(void *pvParameters);
 
 //mp3_player.cpp
 void initializeDFPlayer();

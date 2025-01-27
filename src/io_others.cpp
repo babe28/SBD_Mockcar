@@ -28,7 +28,8 @@ void IRAM_ATTR goalSensorISR3() {
 
 // リセットボタン用割り込み
 void IRAM_ATTR handleResetButton() {
-    systemState.buttons[0].isPressed = true; // リセットボタンが押されたフラグをセット
+    //systemState.buttons[0].isPressed = true; // リセットボタンが押されたフラグをセット
+    resetFlag = true;
 }
 
 //スタートセンサーのチェック・ポーリング・チャタリング対策アリ
@@ -70,15 +71,21 @@ void stopTimer(int timerId) {
 
 
 
-//割り込み使用に変更
+//割り込み使用に変更から更に戻した
 void checkResetButton() {
     static unsigned long lastTriggerTime = 0;
-    if(systemState.buttons[0].isPressed && (millis() - lastTriggerTime > 200)){
+    if(digitalRead(RESET_BUTTON_PIN)==LOW){
+        resetFlag = true;
+    }
+
+    if(resetFlag && (millis() - lastTriggerTime > 250)){
         systemState.buttons[0].isPressed = false;
-        // Serial.println("[DEBUG] checkResetButton executed.\n Detect Check Button.");
+        resetFlag = false;
+        //Serial.println("[DEBUG] checkResetButton executed.\n Detect Check Button.");
         resetRaceState();
         systemState.race.startSensor.isActive = false;
         drawIdleScreen();
+        delay(10);
         lastTriggerTime = millis();
         return;
     }
@@ -95,37 +102,6 @@ bool isSensorTriggered() {
 void updateButtonStates() {
     unsigned long currentTime = millis();
 
-    /* for (int i = 0; i < 3; i++) { // ボタンが3つの場合
-        bool currentState = digitalRead(buttonPins[i]) == LOW; // LOWで押下状態
-
-        if (currentState) {
-            // ボタンが新たに押された場合
-            if (!buttonStates[i].isPressed) {
-                buttonStates[i].pressStartTime = currentTime;
-                buttonStates[i].isPressed = true;
-                buttonStates[i].isLongPressed = false; // 初期化
-            }
-
-            // 長押し判定
-            if (currentTime - buttonStates[i].pressStartTime > LONG_PRESS_THR) {
-                buttonStates[i].isLongPressed = true;
-            }
-        } else {
-            // ボタンが離された場合
-            if (buttonStates[i].isPressed) {
-                // 短押し・長押しの判定
-                if (buttonStates[i].isLongPressed) {
-                    Serial.printf("Button %d was long-pressed.\n", i);
-                } else {
-                    Serial.printf("Button %d was short-pressed.\n", i);
-                }
-            }
-
-            // 状態リセット
-            buttonStates[i].isPressed = false;
-            buttonStates[i].isLongPressed = false;
-        }
-    }*/
 }
 
 // ゴールセンサーの割り込みを無効化 今のところ使っていない
@@ -140,6 +116,8 @@ void enableGoalSensorInterrupts() {
     attachInterrupt(digitalPinToInterrupt(GOAL_SENS_2), goalSensorISR2, FALLING);
     attachInterrupt(digitalPinToInterrupt(GOAL_SENS_3), goalSensorISR3, FALLING);
 }
+
+
 
 void Analyze_IR(){
 

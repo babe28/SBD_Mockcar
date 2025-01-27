@@ -103,37 +103,38 @@ uint8_t send_buf[8]= {0x7E, 0xFF, 0x06, 0x01, 0x00, 0x00, 0x00, 0xEF};
 
 void setup(void)
 {
-  //ピンモード設定　IO設定　
-  pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);  //リセットボタン
-
-  pinMode(LED_BLUE,OUTPUT);                //LED
-  pinMode(LED_GREEN,OUTPUT);               //LED
-  pinMode(BULTIN_LED,OUTPUT);         //内蔵LEDは２ピン
-  pinMode(START_SENS,INPUT);          //暫定処理そして残念ながらInput専用でプルアップなし
+  pinMode(RESET_BUTTON_PIN,INPUT);  //リセットボタン pins39
+  pinMode(START_BUTTON_PIN,INPUT);  //スタートボタン pins27
+  pinMode(LED_BLUE,OUTPUT);                //LED pins13
+  pinMode(LED_GREEN,OUTPUT);               //LED pins15
+  pinMode(BULTIN_LED,OUTPUT);         //内蔵LED pins2
+  pinMode(START_SENS,INPUT);          //暫定処理
   pinMode(GOAL_SENS_1, INPUT);        //暫定処理
   pinMode(GOAL_SENS_2, INPUT);        //暫定処理
   pinMode(GOAL_SENS_3, INPUT);        //暫定処理
-  pinMode(ADC_PIN, INPUT);            //ADCで３つボタン
+
   digitalWrite(BULTIN_LED,HIGH);  //内蔵LED ON
 
-  pinMode(SERIAL_MP3_RX,INPUT);      //MP3モジュール
-  pinMode(SERIAL_MP3_TX,OUTPUT);     //MP3モジュール 
+  pinMode(SERIAL_MP3_RX,INPUT);      //MP3モジュール  RX18
+  pinMode(SERIAL_MP3_TX,OUTPUT);     //MP3モジュール  TX19
   analogReadResolution(12);           //ADコンバーター12ビット def12bit
   analogSetAttenuation(ADC_11db);      //ADコンバーターゲイン設定 def11db
 
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_1), goalSensorISR1, FALLING);
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_2), goalSensorISR2, FALLING);
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_3), goalSensorISR3, FALLING);
-  attachInterrupt(digitalPinToInterrupt(RESET_BUTTON_PIN),handleResetButton, FALLING);//追加した
-
-  int boardOPmode = 1;                            //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
+  //attachInterrupt(digitalPinToInterrupt(RESET_BUTTON_PIN),handleResetButton,FALLING);
 
   Serial.begin(115200);                   // Start Serial at 115200bps
   Serial2.begin(9600, SERIAL_8N1, 18, 19);
   Serial.printf("Serial2 Initializing...\n");
   delay(3000);
-  initializeDFPlayer();                    //DFPlayer初期化
-    delay(1000);
+    send_buf[3] = 0x06;
+    send_buf[5] = 0;
+    send_buf[6] = 5;
+    Serial2.write(send_buf,8);
+    delay(500);
+
   Wire.begin(I2C_SDA,I2C_SCL);            // Start I2C library
 
   Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );                      //メモリ確認
@@ -150,6 +151,7 @@ void setup(void)
   systemState.race.raceFlag = false;          //レース中判定
   systemState.race.startTime = 0;             //スタートタイム保持
   systemState.race.goalCount = 0;             //ゴールカウンター（１レース毎）
+  int boardOPmode = 1;                            //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
   
     for (int i = 0; i < 3; i++) {
         systemState.race.timers[i].stopTime = 0;    //レーン毎の停止時間
@@ -165,10 +167,10 @@ void setup(void)
   rmtConfig.channel = RMT_CHANNEL_0;              //０で初期化
   rmtConfig.clk_div = 80;                         //RMTのクロック分周
   rmtConfig.gpio_num = GPIO_NUM_21;               //
-  rmtConfig.mem_block_num = 1;                     // メモリブロック数(1-255:1ブロックあたり64ペアの送受信)
+  rmtConfig.mem_block_num = 4;                     // メモリブロック数(1-255:1ブロックあたり64ペアの送受信)
 
   rmtConfig.rx_config.filter_en = true;           //フィルターEnable
-  rmtConfig.rx_config.filter_ticks_thresh = 255;  //1ticks 255us 以下の信号を除外
+  rmtConfig.rx_config.filter_ticks_thresh = 100;  //1ticks 255us 以下の信号を除外
   rmtConfig.rx_config.idle_threshold = 10000;     //10000us以上の信号を除外
 
   rmt_config(&rmtConfig);
@@ -215,10 +217,10 @@ void loop() {
         initializeHistory();        //レースヒストリー初期化
         firstRun = false;           // 初期フラグを解除
         Serial.println("First Run Complete.");
-        mp3.volume(5);
-        return;
+            digitalWrite(LED_GREEN,LOW);
     }
 
+      digitalWrite(LED_GREEN,HIGH);
     // センサーやボタンの監視
     checkStartSensor();     // スタートセンサーの状態を確認
     checkResetButton();     // リセットボタンが押されたかどうか・ボタン自体は割り込み
@@ -230,8 +232,6 @@ void loop() {
       systemState.config.setupMode = true;
     }
 
-    delay(500);
-
 /*
     if(isSensorTriggered()){
       if (SerialDebug)
@@ -242,10 +242,17 @@ void loop() {
       startRace();
     }
 */
+      //printf("reset=%d",digitalRead(RESET_BUTTON_PIN));
 
-    // ループ間隔の調整（必要に応じて調整）
-    //タイマーストップは割り込みなので、まぁあんまり関係ない
-    //delay(10);
+      digitalWrite(LED_GREEN,LOW);
+      if(digitalRead(RESET_BUTTON_PIN) == LOW){
+        digitalWrite(LED_BLUE,HIGH);
+      }else{
+        digitalWrite(LED_BLUE,LOW);
+      }
+
+      delay(50);
+
     if(!systemState.race.raceFlag){
       ReceiveIR(systemState);
       //Analyze_IR();
@@ -255,29 +262,92 @@ void loop() {
       if(systemState.ir_state.enterButton){
         systemState.ir_state.enterButton = false;
         Serial.println("Enter Button Pressed");
-        stopMP3();
+        if(!systemState.config.setupMode){
+          handleConfigMenu();
+        }
       }
-      if(systemState.ir_state.playButton){
-          systemState.ir_state.playButton = false;
+      if(systemState.ir_state.menuButton){
+          systemState.ir_state.menuButton = false;
         Serial.println("Random Play");
-        mp3.randomAll();
 
       }
       systemState.ir_state.isReceived = false;
     }
 
-    //スタートボタンを押したら・・
-    //音を再生ー＞シグナルを点灯
-      
+/*
+    Serial.printf("STARTSENSOR:%d\n",digitalRead(START_SENS));
+    Serial.printf("GOALSENSOR1:%d\n",digitalRead(GOAL_SENS_1));
+    Serial.printf("GOALSENSOR2:%d\n",digitalRead(GOAL_SENS_2));
+    Serial.printf("GOALSENSOR3:%d\n",digitalRead(GOAL_SENS_3));
+
+
+    delay(100);
+    */
 }
 
 
 /* ********************************************************* */
 /* *********** メインloop関数ここまで **************************/
 /* ********************************************************* */
+/*
 void ReceiveIR(SystemState &systemState) {
     size_t rxSize = 0;
-    rmt_data_t *item = (rmt_data_t *)xRingbufferReceive(IRbuffer, &rxSize, 2000);
+    rmt_data_t *item = (rmt_data_t *)xRingbufferReceive(IRbuffer, &rxSize, 500); // タイムアウト短縮
+
+    if (item) {
+        uint8_t receive_data[64];
+        uint8_t byte_count = 0;
+
+        for (uint16_t i = 0; i < rxSize / sizeof(rmt_data_t); i++) {
+            if (i == 0) continue; // 無効データはスキップ
+
+            int duty = (item[i].duration1 * 1000) / item[i].duration0; // 固定小数点
+            int8_t bit0 = (duty >= 700 && duty <= 1300) ? 0 :
+                          (duty >= 2100 && duty <= 3600) ? 1 : -1;
+
+            if (bit0 < 0) continue;
+
+            uint16_t bit_position = (i - 1) % 8;
+            receive_data[byte_count] |= bit0 << bit_position;
+
+            if (bit_position == 7) {
+                byte_count++;
+                if (byte_count >= sizeof(receive_data)) break;
+            }
+        }
+
+        if (byte_count >= 4 && receive_data[0] == 0xEE && receive_data[1] == 0x87) {
+            const uint8_t command = receive_data[2];
+            systemState.ir_state.isReceived = true;
+            systemState.ir_state.lastReceiveTime = millis();
+
+            switch (command) {
+                case 0x04: systemState.ir_state.enterButton = true; break;
+                case 0x08: systemState.ir_state.leftButton = true; break;
+                case 0x07: systemState.ir_state.rightButton = true; break;
+                case 0x0B: systemState.ir_state.upButton = true; break;
+                case 0x0D: systemState.ir_state.downButton = true; break;
+                case 0x02: systemState.ir_state.menuButton = true; break;
+                case 0x5E: systemState.ir_state.enterButton = true; break;
+                default: printf("[IR] Unknown command: 0x%02X\n", command); break;
+            }
+        }
+        vRingbufferReturnItem(IRbuffer, (void *)item);
+    }
+
+    // タイムアウトによるリセット処理
+    if (systemState.ir_state.isReceived &&
+        millis() - systemState.ir_state.lastReceiveTime > 300) {
+        systemState.ir_state = {}; // 状態をリセット
+        printf("[IR] Button states reset.\n");
+    }
+}
+
+*/
+
+void ReceiveIR(SystemState &systemState) {
+    size_t rxSize = 0;
+    rmt_data_t *item = (rmt_data_t *)xRingbufferReceive(IRbuffer, &rxSize, 500);
 
     if (item) {
         uint8_t receive_data[64];
@@ -331,6 +401,14 @@ void ReceiveIR(SystemState &systemState) {
                     printf("[IR] DOWN BUTTON\n");
                     systemState.ir_state.downButton = true;
                     break;
+                case 0x02:
+                    printf("[IR] MENU BUTTON\n");
+                    systemState.ir_state.menuButton = true;
+                    break;
+                case 0x5E:
+                    printf("[IR] ENTER BUTTON\n");
+                    systemState.ir_state.enterButton = true;
+                    break;
                 default:
                     printf("[IR] Unknown command: 0x%02X\n", receive_data[2]);
                     break;
@@ -358,13 +436,10 @@ void ReceiveIR(SystemState &systemState) {
         systemState.ir_state.upButton = false;
         systemState.ir_state.downButton = false;
 
-        printf("[IR] All button states reset due to timeout.\n");
+        Serial.printf("[IR] All button states reset due to timeout.\n");
     }
-  
-
 
 }
-
 
 /* **************************************************
  * タイマー関連関数

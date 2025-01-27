@@ -125,6 +125,8 @@ void handleConfigMenu() {
     
     delay(50); // 入力遅延
 
+    
+
 }
 
 
