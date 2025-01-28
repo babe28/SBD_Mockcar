@@ -22,7 +22,6 @@
 #include <driver/rmt.h>             //赤外線モジュール用
 #include <time.h>                   
 
-
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
@@ -53,7 +52,6 @@
 #define SCREEN_WIDTH 360        //LovyanGFX用画面サイズ横
 #define SCREEN_HEIGHT 240
 
-#define VL6180X_ADDRESS 0x29
 #define DS1307_ADDRESS 0x68
 #define RTC_REGISTER_SECOND 0x00
 #define RTC_REGISTER_MINUTE 0x01
@@ -168,11 +166,13 @@ extern LGFX_Sprite sprite1;     //スプライト作成
 
 extern RingbufHandle_t IRbuffer;  //赤外線受信バッファ
 
-extern const lgfx::U8g2font myFont;
 extern volatile bool resetFlag;                  //リセットボタン押されたかどうかの判定
-extern uint8_t REG_table[7];
+extern uint8_t REG_table[8];
 extern const char *week[];
-extern struct tm timeinfo;
+extern struct tm *tm;
+extern time_t t;
+
+extern int menuValue;
 
 //graphic.cpp
 void displaySplashScreen();     //起動時の画面処理
@@ -225,17 +225,23 @@ void endRace();
 void checkReadyButton();
 void initializeHistory();
 void ReceiveIR(SystemState &systemState);
+void irCheck();
 void analyze_IR();
 void rtcTimeSet();
 void rtc_initialize();
-void rtc_read();
+bool rtc_read();
 void setInternalRTC();
+void updateExternalRtc(struct tm* tm);
+void updateInternalRtc(struct tm* tm);
 int bcdToDec(uint8_t val);
 void readInternalRTC();
+int decToInt(int dec);
+byte decToBcd(int val);
 
 // 設定メニュー関連
 void handleConfigMenu();       // 設定メニューの管理
 void clearRaceHistory();        //履歴削除
+void drawRtcSetMenu(struct tm* tm);
 
 // ディスプレイ更新
 void updateDisplay();          // ディスプレイの更新
@@ -245,7 +251,6 @@ void updateDisplay();          // ディスプレイの更新
 void IRAM_ATTR goalSensorISR1();
 void IRAM_ATTR goalSensorISR2();
 void IRAM_ATTR goalSensorISR3();
-void IRAM_ATTR handleResetButton();
 
 
 void eeprom_initialize();
@@ -270,7 +275,6 @@ extern int raceTotalCount;               //起動後何回レースしたか
 extern int menuSelector;
 extern int boardOPmode;               //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
 
-extern unsigned long buttonPressStart;   // ボタンが押された時刻を記録（長押し判定用）
 extern bool isButtonPressed;         // ボタンが押されているか
 extern bool inSetupMode;             // セットアップモードかどうか
 
@@ -280,9 +284,7 @@ extern const int refreshRate;       // リフレッシュレート（Hz）
 extern const unsigned long updateInterval; // 更新間隔（ms）
 
 
-  //設定保存用（EEPROMの後継ライブラリPreferences）
-  //まずは変数定義
-  extern int on_cycle; //起動回数
-  extern unsigned long best_time_onboard; //ボード最速タイム
-  extern float sensor_gain_start; //センサーのゲイン（スタート）
-  extern float sensor_gain_goal; //センサーゲイン（ゴール）
+//設定保存用（EEPROMの後継ライブラリPreferences）
+//まずは変数定義
+extern int on_cycle; //起動回数
+extern unsigned long best_time_onboard; //ボード最速タイム

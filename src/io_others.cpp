@@ -26,11 +26,6 @@ void IRAM_ATTR goalSensorISR3() {
     systemState.race.goalSensors[2].isSense = true;
 }
 
-// リセットボタン用割り込み
-void IRAM_ATTR handleResetButton() {
-    resetFlag = true;
-}
-
 //スタートセンサーのチェック・ポーリング・チャタリング対策アリ
 void checkStartSensor() {
     static bool lastSensorState = HIGH; // 前回のセンサー状態
@@ -208,7 +203,7 @@ void ReceiveIR(SystemState &systemState) {
 
 }
 
-
+/*
 
 void Analyze_IR(){
   uint8_t receive_data[64],byte_count=0;
@@ -293,3 +288,4 @@ void Analyze_IR(){
   }//if(item)end
 
 }//RECEIVEIR end
+*/

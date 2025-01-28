@@ -23,11 +23,10 @@ volatile bool resetFlag = false;                  //リセットボタン押さ�
 bool firstRun = true;                 //起動後初回実行かどうかを判定
 int goalcount = 0;                    //ゴール通過台数　MAX2(0-2)
 int raceTotalCount = 0;               //起動後何回レースしたか
-RingbufHandle_t buffer = NULL;        // IR用リングバッファ
+//RingbufHandle_t buffer = NULL;        // IR用リングバッファ
 RingbufHandle_t IRbuffer=NULL;        //赤外線受信バッファ
-Button buttonStates[3];               //ボタン設定用
-uint8_t REG_table[7];                 //時間テーブルRTC
-const char *week[] = {"SUN","MON","TUE","WED","THR","FRI","SAT"};
+uint8_t REG_table[8];                 //時間テーブルRTC
+const char *week[] = {"SUN","MON","TUE","WED","THR","FRI","SAT","NON"};
 struct tm timeinfo;                   //内蔵RTC用時刻構造体
 
 
@@ -39,8 +38,6 @@ const unsigned long updateInterval = 1000 / refreshRate; // 更新間隔（ms）
 //設定保存用の変数（EEPROMの後継ライブラリPreferences）まずは変数定義
 int on_cycle = 0; //起動回数
 unsigned long best_time_onboard = 0; //ボード最速タイム
-float sensor_gain_start = 1.00; //センサーのゲイン（スタート）
-float sensor_gain_goal = 1.00; //センサーゲイン（ゴール）
 
 SystemState systemState;
 
@@ -115,17 +112,15 @@ void setup(void)
 
   pinMode(SERIAL_MP3_RX,INPUT);      //MP3モジュール  RX18
   pinMode(SERIAL_MP3_TX,OUTPUT);     //MP3モジュール  TX19
-  analogReadResolution(12);           //ADコンバーター12ビット def12bit
-  analogSetAttenuation(ADC_11db);      //ADコンバーターゲイン設定 def11db
 
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_1), goalSensorISR1, FALLING);
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_2), goalSensorISR2, FALLING);
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_3), goalSensorISR3, FALLING);
-  //attachInterrupt(digitalPinToInterrupt(RESET_BUTTON_PIN),handleResetButton,FALLING); //不安定だから無効化
 
   Serial.begin(115200);                         // Start Serial at 115200bps(デバッグ)
   Serial2.begin(9600, SERIAL_8N1, 18, 19);      // Start Serial2 at 9600bps（DFPlayer Mini）
   printf("Serial2 Initializing...\n");
+  delay(5);
   Wire.begin(I2C_SDA,I2C_SCL);                  // Start I2C library
 
   rmt_config_t rmtConfig;                           //赤外線受信クラス定義
@@ -167,10 +162,8 @@ void setup(void)
   SerialBT.println("setup function finished.");
   Serial.println("setup function finished");
   
-  resetRaceState();                   //変数初期化
-  delay(100);                         //
   eeprom_initialize();                //ブート回数記録・EEPROM読み出し/書き込み
-  //rtcTimeSet();                     //RTC強制時間設定
+  delay(100);
   displaySplashScreen();              //起動時画面読み込み
 
   Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );
@@ -193,16 +186,34 @@ void setup(void)
 void loop() {
     // 起動時の初期化処理
     if (firstRun) {
-        resetRaceState();           // レース状態の初期化・変数の初期化
+        //resetRaceState();           // レース状態の初期化・変数の初期化
+        systemState.race.totalRaceCount = 0;        //レース回数初期化
+        gfx.setTextSize(0.9);
+        printCentering(0,120,"Initilizing...RTC");  //初期化中表示
         initializeHistory();        //レースヒストリー初期化
+        //delay(100);
+        //rtcTimeSet();             //RTC強制時間設定
+        delay(500);
+        rtc_initialize();         //RTC初期化
+        delay(500);
+
+        if(rtc_read){
+          setInternalRTC();           //内蔵RTCへ
+          printf("RTC Read OK\n");
+        }else{
+          printf("RTC Read Error\n");
+        }
+        delay(500);
+
         initializeDFPlayer();       //DFPlayer初期化
-        gfx.fillScreen(TFT_BLACK);  
-        drawIdleScreen();               //初期画面を描画
-        rtc_read();                     //RTC読み込みして
-        setInternalRTC();               //内蔵RTC外部RTCの時刻をセット
-        digitalWrite(LED_GREEN,LOW);
+        printCentering(0,120,"Initilizing...MP3PLAYER");  //初期化中表示
+
+
         firstRun = false;               //初期フラグを解除
+        gfx.fillScreen(TFT_BLACK);  
         Serial.println("First Run Complete.");
+        drawIdleScreen();               //初期画面を描画
+        digitalWrite(LED_GREEN,LOW);
 
     }
 
@@ -211,49 +222,21 @@ void loop() {
     checkResetButton();     // リセットボタンが押されたかどうか・ボタン自体は割り込み
     updateDisplay();        //タイマーと描画関連全般
 
-    if(buttonStates[0].isLongPressed){    // 長押し検知でセットアップモードに遷移
-      systemState.config.setupMode = true;
-    }
     digitalWrite(LED_GREEN,LOW);   //LED点灯（メインルーチン速度測定用）
 
 
 
       //printf("reset=%d",digitalRead(RESET_BUTTON_PIN));
 
-      delay(5);
+      delay(10);
 
     if(!systemState.race.raceFlag){
       ReceiveIR(systemState);
       //Analyze_IR();
     }
 
-    if(systemState.ir_state.isReceived){ //IR受信があったら
-      if(systemState.ir_state.menuButton){
-        systemState.ir_state.menuButton = false;
-        if(!systemState.config.setupMode){
-          handleConfigMenu();
-          systemState.config.setupMode = true;
-
-        }
-      }
-      if(systemState.ir_state.playButton){
-        systemState.ir_state.playButton = false;
-        stopMP3();
-      }
-      if(systemState.ir_state.rightButton){
-        systemState.ir_state.rightButton = false;
-
-      }
-      if(systemState.ir_state.leftButton){
-        systemState.ir_state.leftButton = false;
-
-      }
-    systemState.ir_state.isReceived = false;
-    }
-
-
-
-      checkReadyButton(); //スタート(レディ）ボタンが押されたかどうか
+    irCheck(); //システムステート変更
+    checkReadyButton(); //スタート(レディ）ボタンが押されたかどうか
 /*
     Serial.printf("STARTSENSOR:%d\n",digitalRead(START_SENS));
     Serial.printf("GOALSENSOR1:%d\n",digitalRead(GOAL_SENS_1));
@@ -295,16 +278,31 @@ void checkReadyButton(){
  * ステート変更　メインループからのちほど避難させる
  ************************************/
 
-void systemStateChange(){
-  if(systemState.ir_state.enterButton){
-    systemState.ir_state.enterButton = false;
-    
-    if(!systemState.config.setupMode){
-      systemState.config.setupMode = true;
-      handleConfigMenu();
-    }
-  }
+void irCheck(){
+    if(systemState.ir_state.isReceived){ //IR受信があったら
+      if(systemState.ir_state.menuButton){
+        systemState.ir_state.menuButton = false;
+        if(!systemState.config.setupMode){
+          handleConfigMenu();
+          systemState.config.setupMode = true;
 
+        }
+      }
+      if(systemState.ir_state.playButton){
+        systemState.ir_state.playButton = false;
+        stopMP3();
+        systemState.race.bgmFlag = false;
+      }
+      if(systemState.ir_state.rightButton){
+        systemState.ir_state.rightButton = false;
+
+      }
+      if(systemState.ir_state.leftButton){
+        systemState.ir_state.leftButton = false;
+
+      }
+    systemState.ir_state.isReceived = false;
+    }
 }
 
 
@@ -354,7 +352,6 @@ void startRace() {
     systemState.race.signalDrawing = false; //シグナル描画フラグをOFF
     systemState.race.signalFlag = false;    //シグナルフラグをOFF
 
-
     Serial.println("Race started!");
 
 }
@@ -368,7 +365,13 @@ void resetRaceState() {
         systemState.race.timers[i].stopTime = 0;
     }
     //updateDisplay(); // 初期画面を描画
-    
+    resetTimers();
+    clearDisplay();
+    updateTimers();
+    if(systemState.race.bgmFlag){
+      stopMP3();
+      systemState.race.bgmFlag = false;
+    }
     Serial.println("[DEBUG] Race state reset!");
     
 }
@@ -392,8 +395,6 @@ void endRace() {
         systemState.race.timers[i].isTiming = false;
         systemState.race.timers[i].stopTime = 0;
     }
-
-    //resetRaceState();                                             // 状態リセットをやめて上記にした。
     systemState.race.totalRaceCount++;                            // レース回数をインクリメント
     Serial.printf("[DEBUG] Race %d ended and history saved.\n", systemState.race.totalRaceCount);
     
@@ -433,6 +434,8 @@ void initializeHistory() {
             systemState.history[i].times[j] = 0;
         }
     }
+    systemState.currentHistoryIndex = 0;
+    systemState.config.bestTime = 99999; // 最速タイムを初期化
 }
 
 
@@ -487,80 +490,166 @@ void sendBluetoothData() {
 
 void rtc_initialize(){
   //RTC初期化
-
+  byte err;
+  char data_read_buf[16];
   Wire.beginTransmission(DS1307_ADDRESS);
+  delay(1);
   Wire.write(0x00); //START_REGISTOR
   delay(1);
-  Wire.endTransmission();
-  Wire.requestFrom(DS1307_ADDRESS,7);
-  for(int i=0;i<=7;i++){
-    REG_table[i]=Wire.read();
-    delay(1);
+  err  = Wire.endTransmission();
+  if(err != 0){
+    Serial.printf("RTC Read Error:%d\n",err);
+    return;
+  }else{
+  Wire.requestFrom(DS1307_ADDRESS,8);
+
+  for (int ii = 0; ii < 8; ii++) {
+      while (Wire.available() == 0 ) {}
+      data_read_buf[ii] = Wire.read();
+    }
+    for(int i = 0; i < 7; i++){
+      REG_table[i]=data_read_buf[i];
+    }
   }
-  Serial.printf("DS1307 is 20%02X/%02X/%02X (%s) %02X:%02X:%02X\n",
-                REG_table[6],              // 年 (16進数形式)
-                REG_table[5],              // 月 (16進数形式)
-                REG_table[4],              // 日 (16進数形式)
-                week[REG_table[3]],    // 曜日 (インデックス調整)
-                REG_table[2],              // 時 (16進数形式)
-                REG_table[1],              // 分 (16進数形式)
-                REG_table[0]);             // 秒 (16進数形式)
+/*    Serial.printf("DS1307 is 20%02X/%02X/%02X (%s) %02X:%02X:%02X\n",
+                  REG_table[6],              // 年 (16進数形式)
+                  REG_table[5],              // 月 (16進数形式)
+                  REG_table[4],              // 日 (16進数形式)
+                  week[REG_table[3]],    // 曜日 (インデックス調整)
+                  REG_table[2],              // 時 (16進数形式)
+                  REG_table[1],              // 分 (16進数形式)
+                  REG_table[0]);             // 秒 (16進数形式)
+  }*/
+     if(REG_table[6] == 0x00 || REG_table[6] == 0xFF){
+      Serial.println("RTC is not working.");
+    }
+ Serial.printf("DS1307 is 20%02d/%02d/%02d (%s) %02d:%02d:%02d\n",
+              bcdToDec(REG_table[6]),   // 年
+              bcdToDec(REG_table[5]),   // 月
+              bcdToDec(REG_table[4]),   // 日
+              week[REG_table[3]],       // 曜日
+              bcdToDec(REG_table[2]),   // 時
+              bcdToDec(REG_table[1]),   // 分
+              bcdToDec(REG_table[0]));  // 秒
+
 }
 
 void rtcTimeSet(){
+  byte err;
   //DS1307RTC 強制時間設定
   Wire.beginTransmission(DS1307_ADDRESS);
-  delay(1);
+delay(1);
   Wire.write(0x00); //START_REGISTOR
+delay(1);
   Wire.write(0x00); //秒
-  Wire.write(0x14); //分
-  Wire.write(0x08); //時
+  Wire.write(0x57); //分
+  Wire.write(0x13); //時
   Wire.write(0x02); //週(SUN 00 MON 01 TUE 02)
   Wire.write(0x28); //日
   Wire.write(0x01); //月
   Wire.write(0x25); //年 20xx年
-  delay(1);
-  Wire.endTransmission();
+//  delay(1);
+  err = Wire.endTransmission();
+  if(err!=0){
+    Serial.printf("RTC Write Error:%d\n",err);
+  }else{
+    Serial.printf("\nRTC DATE WRITE\n");
+  }
+
 }
 
-void rtc_read(){
+bool rtc_read(){
+  byte err;
   //RTC読み出し
   Wire.beginTransmission(DS1307_ADDRESS);
+  delay(1);
   Wire.write(0x00); //START_REGISTOR
-  Wire.endTransmission();
+  err  = Wire.endTransmission();
+  delay(1);
+  if(err != 0){
+    Serial.printf("RTC Read Error:%d\n",err);
+    return false;
+  }else{
   Wire.requestFrom(DS1307_ADDRESS,7);
-  REG_table[0] = Wire.read();
-  REG_table[1] = Wire.read();
-  REG_table[2] = Wire.read();
-  REG_table[3] = Wire.read();
-  REG_table[4] = Wire.read();
-  REG_table[5] = Wire.read();
-  REG_table[6] = Wire.read();
-  Serial.printf("20%02X/%02X/%02X (%s) %02X:%02X:%02X\n",
+  delay(10);
+  REG_table[0] = Wire.read(); //秒
+  REG_table[1] = Wire.read(); //分
+  REG_table[2] = Wire.read(); //時
+  REG_table[3] = Wire.read(); //曜日
+  REG_table[4] = Wire.read(); //日
+  REG_table[5] = Wire.read(); //月
+  REG_table[6] = Wire.read(); //年
+  Serial.printf("20%02X/%02X/%02X ( - ) %02X:%02X:%02X\n",
                 REG_table[6],              // 年 (16進数形式)
                 REG_table[5],              // 月 (16進数形式)
                 REG_table[4],              // 日 (16進数形式)
-                week[REG_table[3]],    // 曜日 (インデックス調整)
                 REG_table[2],              // 時 (16進数形式)
                 REG_table[1],              // 分 (16進数形式)
                 REG_table[0]);             // 秒 (16進数形式)
+
+    if(REG_table[6] == 0x00 || REG_table[6] == 0xFF){
+      Serial.println("RTC is not working.");
+      return false;
+    }
+  }
+
+  return true;
 }
 
 void setInternalRTC() {
+    
     timeinfo.tm_year = bcdToDec(REG_table[6]) + 2000 - 1900; // 年（1900年基準）
     timeinfo.tm_mon = bcdToDec(REG_table[5]) - 1;            // 月（0-11）
     timeinfo.tm_mday = bcdToDec(REG_table[4]);               // 日
     timeinfo.tm_hour = bcdToDec(REG_table[2]);               // 時
     timeinfo.tm_min = bcdToDec(REG_table[1]);                // 分
     timeinfo.tm_sec = bcdToDec(REG_table[0]);                // 秒
+    
     timeinfo.tm_isdst = -1;                                  // サマータイム情報を無効化
+
+    /* timeinfo.tm_year = REG_table[6] + 2000 - 1900;
+    timeinfo.tm_mon = REG_table[5] - 1;
+    timeinfo.tm_mday = REG_table[4];
+    timeinfo.tm_hour = REG_table[2];
+    timeinfo.tm_min = REG_table[1];
+    timeinfo.tm_sec = REG_table[0];*/
 
     struct timeval now = {mktime(&timeinfo), 0};
     settimeofday(&now, NULL); // ESP32の内蔵RTCに時刻を設定
 }
+void updateInternalRtc(struct tm* tm) {
+    time_t t = mktime(tm); // struct tm を time_t に変換
+    struct timeval now = { .tv_sec = t, .tv_usec = 0 };
+    settimeofday(&now, NULL); // ESP32内蔵RTCを更新
+    Serial.println("Internal RTC updated!");
+}
+
+void updateExternalRtc(struct tm* tm) {
+    Wire.beginTransmission(DS1307_ADDRESS);
+    Wire.write(0x00); // レジスタの先頭アドレス
+
+    // 秒から年までBCD形式で送信
+    Wire.write(decToBcd(tm->tm_sec));   // 秒
+    Wire.write(decToBcd(tm->tm_min));   // 分
+    Wire.write(decToBcd(tm->tm_hour));  // 時
+    Wire.write(decToBcd(tm->tm_mday));  // 日
+    Wire.write(decToBcd(tm->tm_mon + 1)); // 月
+    Wire.write(decToBcd(tm->tm_year - 100)); // 年 (1900年基準から2000年基準に変換)
+
+    Wire.endTransmission();
+    Serial.println("External RTC updated!");
+}
 
 int bcdToDec(uint8_t val) {
     return ((val >> 4) * 10) + (val & 0x0F);
+}
+int decToInt(int dec){
+  int data;
+  data = (dec >> 4 ) * 10 + (dec & 0x0F);
+  return data;
+}
+byte decToBcd(int val) {
+    return (val / 10 * 16) + (val % 10);
 }
 
 void readInternalRTC() {

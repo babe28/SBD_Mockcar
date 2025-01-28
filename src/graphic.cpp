@@ -131,6 +131,8 @@ void drawIdleScreen() {     //待機画面
         gfx.fillScreen(TFT_BLACK);
                 //初回クリア
         isIdleScreenInitialized = true; // 初期化フラグを設定
+    }else if(systemState.race.signalFlag){
+        isIdleScreenInitialized = false;
     }
     TimerHistory &lastRace = systemState.history[systemState.currentHistoryIndex];
 
@@ -233,6 +235,7 @@ void updateTimers() {   //レース中のタイマー管理
             gfx.setTextColor(TFT_BLACK, TFT_WHITE);
             gfx.setCursor(126 + i * 5, 15 + i * 66);
             gfx.printf("%02lu.%03lu", timer.stopTime / 1000, timer.stopTime % 1000);
+            allTimersStopped = true;
         }
 
     }//forここまで
@@ -388,10 +391,11 @@ void raceSignalDraw() {
 
     if (signal_init) {
         // 初期化処理（外円描画と消灯赤描画）
+        gfx.fillScreen(TFT_BLACK);
         gfx.setColor(TFT_DARKGRAY);
-        gfx.drawCircle(70, 100, 42); // 外円1
-        gfx.drawCircle(180, 100, 42); // 外円2
-        gfx.drawCircle(290, 100, 42); // 外円3
+        gfx.drawCircle(70, 100, 44); // 外円1
+        gfx.drawCircle(180, 100, 44); // 外円2
+        gfx.drawCircle(290, 100, 44); // 外円3
         gfx.setColor(gfx.color888(70, 0, 0));
         gfx.fillCircle(70, 100, 40); // 消灯赤1
         gfx.fillCircle(180, 100, 40); // 消灯赤2
@@ -420,7 +424,7 @@ void raceSignalDraw() {
                     gfx.fillCircle(290, 100, 40);
                     break;
                 case 3: // 緑点灯
-                    gfx.setColor(gfx.color888(0, 153, 38));
+                    gfx.setColor(gfx.color888(0, 180, 100));
                     gfx.fillCircle(70, 100, 40);
                     gfx.fillCircle(180, 100, 40);
                     gfx.fillCircle(290, 100, 40);
@@ -432,8 +436,8 @@ void raceSignalDraw() {
             signal_step++; // 次のステップへ進む
             if (signal_step > 3) {
                 systemState.race.signalDrawing = false; // 描画終了
-                signal_step = 0; // ステップをリセット
-                signal_init = false; // 初期化フラグをリセット
+                signal_step = 0;        // ステップをリセット
+                signal_init = true;     // 初期化フラグをリセット
             }
         }
     }
