@@ -48,6 +48,9 @@
 #define RMT_CHANNEL_TX RMT_CHANNNEL_0
 #define CARRIER_FREQ 38000
 
+#define TIMER_SEGMENT_X 118
+#define DRAWLINE_X 102
+#define CIRCLE_TEXT_X 54
 
 #define SCREEN_WIDTH 360        //LovyanGFX用画面サイズ横
 #define SCREEN_HEIGHT 240

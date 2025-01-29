@@ -81,6 +81,7 @@ void updateDisplay() {//描画を分けるところ。描画関連はまずこ�
         //順番で画面の優先順位変わる。レーシングが一番上か。
         //ヒストリー表示時＞レース始まる＞ヒストリー抜けるとレースが表示される（裏でセットアップ出てる）
         //これを直したほうがいい。
+        
     if (systemState.config.HistoryMode) {
         currentState = DisplayState::History;
     } else if (systemState.race.raceFlag) {
@@ -138,24 +139,24 @@ void drawIdleScreen() {     //待機画面
 
     for (int i = 0; i < 3; i++) {
         
-        gfx.fillCircle(78 + i * 9, 40 + i * 67, 29, TFT_GOLD); // 番号の背景
+        gfx.fillCircle(70 + i * 9, 39 + i * 67, 29, TFT_GOLD); // 番号の背景
         gfx.setFont(&fonts::AsciiFont8x16);
         gfx.setTextSize(4.3);
         gfx.setTextColor(TFT_BLACK);
-        gfx.setCursor(62 + i * 9, 15 + i * 65);
+        gfx.setCursor(CIRCLE_TEXT_X + i * 9, 15 + i * 65);
         gfx.printf("%d", i + 1);                                //番号
 
         gfx.setColor(TFT_GOLD);
-        gfx.drawFastHLine(110,77,350);   //水平線描画
-        gfx.drawFastHLine(115,79,350);   //水平線描画
-        gfx.drawFastHLine(120,142,350);   //水平線描画
-        gfx.drawFastHLine(125,144,350);   //水平線描画
+        gfx.drawFastHLine(DRAWLINE_X,77,350);   //水平線描画
+        gfx.drawFastHLine(DRAWLINE_X + 5,79,350);   //水平線描画
+        gfx.drawFastHLine(DRAWLINE_X + 10,142,350);   //水平線描画
+        gfx.drawFastHLine(DRAWLINE_X + 15,144,350);   //水平線描画
         gfx.setColor(TFT_WHITE);
 
         gfx.setFont(&fonts::Font7); // 7セグフォント
         gfx.setTextSize(1.25);
         gfx.setTextColor(resetFlag ? TFT_CYAN : TFT_WHITE, TFT_BLACK);
-        gfx.setCursor(126 + i * 5, 15 + i * 66);
+        gfx.setCursor(TIMER_SEGMENT_X + i * 5, 15 + i * 66);
         gfx.printf("%02lu.%03lu",lastRace.times[i] / 1000,lastRace.times[i] % 1000); // 前回のタイム表示
         //gfx.printf("00.000"); // 初期タイム表示
     }
@@ -165,27 +166,26 @@ void drawRaceScreen() {
     // 番号の背景と番号の描画
     // updateDisplayから呼ばれる
     for (int i = 0; i < 3; i++) {
-        gfx.fillCircle(78 + i * 9, 40 + i * 67, 29, TFT_GOLD); // 番号の背景
+        gfx.fillCircle(70 + i * 9, 40 + i * 67, 29, TFT_GOLD); // 番号の背景
         gfx.setFont(&fonts::AsciiFont8x16);
         gfx.setTextSize(4.3);
         gfx.setTextColor(TFT_BLACK);
-        gfx.setCursor(62 + i * 9, 15 + i * 65);
+        gfx.setCursor(54 + i * 9, 15 + i * 65);
         gfx.printf("%d", i + 1);                                //番号
     }
 }
 
 void updateTimers() {   //レース中のタイマー管理
-    bool allTimersStopped = true;
     static unsigned long previousTimes[3] = {0, 0, 0};
 
     for (int i = 0; i < 3; i++) {
         Timer &timer = systemState.race.timers[i];                              //インスタンス作成　構造体コピー
+        Sensor &goal_sens = systemState.race.goalSensors[i];
         unsigned long elapsedTime = millis() - systemState.race.startTime;      //経過時間
 
         if (timer.isTiming) {
             //タイマーが動いているとき・・
             //Serial.printf("[DEBUG] Timer %d: Running, Elapsed: %lu ms\n", i + 1, elapsedTime);
-            allTimersStopped = false;       //タイマーはまだ動いてます
             unsigned long elapsed = systemState.race.timers[i].isTiming     //タイマーが動いていれば
                                 ? millis() - systemState.race.startTime     //経過時間を
                                 : systemState.race.timers[i].stopTime;      //止まっていれば停止秒を入れる
@@ -205,26 +205,26 @@ void updateTimers() {   //レース中のタイマー管理
                     gfx.setFont(&fonts::Font7); //通常表示はこっち
                     gfx.setTextSize(1.25);
                     gfx.setTextColor(systemState.race.timers[i].isTiming ? TFT_GOLD : TFT_WHITE, TFT_BLACK);
-                    gfx.setCursor(126 + i * 5, 15 + i * 66);
+                    gfx.setCursor(TIMER_SEGMENT_X + i * 5, 15 + i * 66);
                     gfx.printf("%02lu.%03lu", elapsed / 1000, elapsed % 1000);
 
                     gfx.setColor(TFT_GOLD);
-                    gfx.drawFastHLine(110,77,350);   //水平線描画
-                    gfx.drawFastHLine(115,79,350);   //水平線描画
-                    gfx.drawFastHLine(120,142,350);   //水平線描画
-                    gfx.drawFastHLine(125,144,350);   //水平線描画
+                    gfx.drawFastHLine(DRAWLINE_X,77,350);   //水平線描画
+                    gfx.drawFastHLine(DRAWLINE_X + 5,79,350);   //水平線描画
+                    gfx.drawFastHLine(DRAWLINE_X + 10,142,350);   //水平線描画
+                    gfx.drawFastHLine(DRAWLINE_X + 15,144,350);   //水平線描画
                     gfx.setColor(TFT_WHITE);
                 }
             }
             // タイムが変化した場合のみ更新　ここまで
 
             // 未走行タイマーの履歴保存 タイマーが止まっていてなおかつ０秒（未計測の場合）？ありえなくない？
-            //if (!timer.isTiming && timer.stopTime == 0) {
-            //    timer.stopTime = 99999; // 999秒として記録・ありえない値を代入
-            //    }
+            if (!timer.isTiming && timer.stopTime == 0) {
+                timer.stopTime = 99999; // 999秒として記録・ありえない値を代入
+                }
             if(!timer.isTiming && elapsed > 99999){     //99秒超えたら
                 timer.stopTime = 99999;
-                allTimersStopped = true;
+                timer.isTiming = false;
             }
         //タイマーが動いている判定
         } else {    //isTiming
@@ -235,15 +235,21 @@ void updateTimers() {   //レース中のタイマー管理
             gfx.setTextColor(TFT_BLACK, TFT_WHITE);
             gfx.setCursor(126 + i * 5, 15 + i * 66);
             gfx.printf("%02lu.%03lu", timer.stopTime / 1000, timer.stopTime % 1000);
-            allTimersStopped = true;
-        }
 
+            goal_sens.isActive = false; //追加
+            //systemState.race.goalCount++;   //追加
+            goal_sens.isSense = false;  
+            Serial.printf("[DEBUG] Timers[%d]stopped\n",i);
+        }
     }//forここまで
 
-    if (allTimersStopped) {
-        Serial.println("[DEBUG] All timers stopped. Ending race...");
-        endRace();
-    }
+        if(systemState.race.timers[0].isTiming == false &&
+        systemState.race.timers[1].isTiming == false &&
+        systemState.race.timers[2].isTiming == false){            
+            endRace();
+            Serial.println("[DEBUG] All timers stopped. EndRace.");
+            systemState.race.goalCount = 0;
+        }
 }
 
 

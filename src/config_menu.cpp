@@ -33,11 +33,12 @@ void handleConfigMenu() {
     //clearDisplay();                     //メイン画面だけ初期化
     setFontNormal();
     // ヘッダー表示
-    printCentering(0,3,"= = = = = = = SETUP MODE = = = = = = =");
+    printCentering(0,3,"=-=-=-=-=-=-= SETUP MODE =-=-=-=-=-=-=");
     gfx.setCursor(20, 20);
     gfx.setTextColor(TFT_WHITE,TFT_DARKCYAN);
     gfx.setTextSize(1);
-    gfx.printf("SENSOR_STATE(S:%d)(G1:%d)(G2:%d)(G3:%d)",digitalRead(START_SENS),digitalRead(GOAL_SENS_1),digitalRead(GOAL_SENS_2),digitalRead(GOAL_SENS_3));
+    gfx.setFont(&fonts::efontJA_16_b);
+    gfx.printf("センサ状態(S:%d)(G1:%d)(G2:%d)(G3:%d)",digitalRead(START_SENS),digitalRead(GOAL_SENS_1),digitalRead(GOAL_SENS_2),digitalRead(GOAL_SENS_3));
 
     // メニュー表示(１文字８x１６なので８の倍数で設定するときれい)
     int baseX = 18;
@@ -45,26 +46,29 @@ void handleConfigMenu() {
 
     gfx.setTextSize(1);
     gfx.setTextColor(TFT_WHITE, TFT_BLACK);
+    
     gfx.setCursor(baseX + 8, baseY);
-    gfx.printf("SENSOR GAIN (S): 000 ");    //項目番号１
+    gfx.setTextSize(0.8);
+    gfx.printf("上下ボタンで項目選択・決定ボタンで項目値変更");    //項目番号１
+    gfx.setFont(&fonts::AsciiFont8x16);
     gfx.setCursor(baseX + 8, baseY + 16);
-    gfx.printf("BGM VOLUME < %d >",systemState.config.bgmVolume);               //項目番号２
+    gfx.printf("BGM VOLUME < %d > (0 - 25)",systemState.config.bgmVolume);               //項目番号２
     gfx.setCursor(baseX + 8, baseY + 32);
-    gfx.printf("BGM DUCKING? %s",systemState.config.bgmDucking ? "YES" : "NO");   //項目番号３
+    gfx.printf("BGM DUCKING? %s",systemState.config.bgmDucking ? "<ON>" : "<OFF>");   //項目番号３
     gfx.setCursor(baseX + 8, baseY + 48);
-    gfx.printf("EVERY RACE SEND BT)");                                           //項目番号４
+    gfx.printf("EVERY RACE SEND Bluetooth");                                           //項目番号４
     gfx.setCursor(baseX + 8, baseY + 64);
-    gfx.printf("VIEW RACE HISTORY");                                                //項目番号５
+    gfx.printf("VIEW RACE HISTORY 7times");                                                //項目番号５
     gfx.setCursor(baseX + 8, baseY + 80);
-    gfx.printf("SEND RACE HISTORY(Bluetooth)");                                     //項目番号６
+    gfx.printf("SEND RACE HISTORY (Today) (Bluetooth)");                                     //項目番号６
     gfx.setCursor(baseX + 8, baseY + 96);
     gfx.printf("CLEAR FASTEST LAP");                                        //項目番号７
+    //gfx.setCursor(baseX + 8, baseY + 112);
+    //gfx.printf("INITIALIZE");                                        //項目番号８
     gfx.setCursor(baseX + 8, baseY + 112);
-    gfx.printf("INITIALIZE");                                        //項目番号８
-    gfx.setCursor(baseX + 8, baseY + 128);
     if(systemState.config.selectedMenuItem == 8){
     gfx.setTextColor(TFT_WHITE, TFT_DARKGREEN);
-    gfx.printf("RTC SET: %04d/%02d/%02d %02d:%02d:%02d\n",
+    gfx.printf("DATE/TIME SET: %04d/%02d/%02d %02d:%02d:%02d\n",
                 tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
                 tm->tm_hour, tm->tm_min, tm->tm_sec);
     gfx.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -74,10 +78,10 @@ void handleConfigMenu() {
                 tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
                 tm->tm_hour, tm->tm_min, tm->tm_sec);
     }
-    gfx.setCursor(baseX + 8, baseY + 144);
+    gfx.setCursor(baseX + 8, baseY + 128);
     gfx.printf("RECALL DEFAULT SETTINGS");                                        //項目番号１０
     gfx.setTextColor(TFT_RED,TFT_BLACK);
-    printCentering(0,baseY + 160,"# # # # # SETUP EXIT # # # # # ");                      //項目番号１２
+    printCentering(0,baseY + 144,"# # # # # SETUP EXIT # # # # # ");                      //項目番号１２
 
     //ゲインは+50まで(5ステップ)
     if(systemState.config.sensorGainStart > 50){
@@ -96,8 +100,21 @@ void handleConfigMenu() {
     int arrowBaseHori = 120 + menuValue * 20;
     gfx.fillTriangle(arrowBaseX, arrowBaseY, arrowBaseX - 10, arrowBaseY + 5, arrowBaseX, arrowBaseY + 10, TFT_RED);
     gfx.fillTriangle(arrowBaseXX,arrowBaseYY,arrowBaseXX + 10,arrowBaseYY+ 5,arrowBaseXX,arrowBaseYY + 10, TFT_RED);
-    if(systemState.config.selectedMenuItem == 8){
-       gfx.fillTriangle(arrowBaseHori, arrowBaseY - 8, arrowBaseHori + 5, arrowBaseY + 2, arrowBaseHori + 10, arrowBaseY - 8, TFT_GOLD);
+    if(systemState.config.selectedMenuItem == 7){
+        switch(menuValue){
+            case 0:
+               gfx.fillTriangle(arrowBaseHori, arrowBaseY - 8, arrowBaseHori + 5, arrowBaseY + 2, arrowBaseHori + 10, arrowBaseY - 8, TFT_GOLD);
+            break;
+            case 1:
+                gfx.fillTriangle(arrowBaseHori + 10, arrowBaseY - 8, arrowBaseHori + 15, arrowBaseY + 2, arrowBaseHori + 20, arrowBaseY - 8, TFT_GOLD);
+            break;
+            case 2:
+                gfx.fillTriangle(arrowBaseHori + 32, arrowBaseY - 8, arrowBaseHori + 27, arrowBaseY + 2, arrowBaseHori + 42, arrowBaseY - 8, TFT_GOLD);
+            break;
+
+            default:
+            return;
+        }
     }
     // ボタン操作
     gfx.setCursor(10, 5);
@@ -188,15 +205,14 @@ void handleConfigMenu() {
                 clearRaceHistory();
                 printCentering(0,100,"CLEAR HISTORY");
                 systemState.config.selectedMenuItem = 1;
-        }else if(systemState.config.selectedMenuItem == 8){
+        }else if(systemState.config.selectedMenuItem == 7){
             //RTC TOKEI SETTING
-        menuValue++;
+            menuValue++;//横にずれていく
         if (menuValue > 5) { // 最後の項目を超えたら
             menuValue = 0;
-
-            // RTC更新処理
-            updateInternalRtc(tm);
-            delay(10);
+            
+            updateInternalRtc(tm);// RTC更新処理
+            delay(50);
             updateExternalRtc(tm);
 
             // 完了メッセージ
@@ -204,13 +220,13 @@ void handleConfigMenu() {
             gfx.setTextColor(TFT_GREEN, TFT_BLACK);
             gfx.printf("RTC UPDATED!");
             delay(100);
-            
         }
-        }else if(systemState.config.selectedMenuItem == 9){ //RECALL DEF
+
+        }else if(systemState.config.selectedMenuItem == 8){ //RECALL DEF
             //初期設定にもどす
             systemState.config.bgmVolume = 5;
             systemState.config.sensorGainStart=0;
-        }else if(systemState.config.selectedMenuItem == 10){
+        }else if(systemState.config.selectedMenuItem == 9){
             //セットアップモード抜ける
             delay(10);
             systemState.config.setupMode = false;
@@ -218,7 +234,7 @@ void handleConfigMenu() {
             systemState.config.selectedMenuItem = 0;    //設定画面にもう一度入るとおかしくなるから
         }
 
-            if (systemState.config.selectedMenuItem != 8) {
+            if (systemState.config.selectedMenuItem != 7) {
                 rtcInitialized = false; // 他のメニューに移動したらフラグリセット
             }
 
@@ -231,7 +247,7 @@ void handleConfigMenu() {
 
 
         // **左右ボタンで値を変更**
-        if(systemState.config.selectedMenuItem == 8){
+        if(systemState.config.selectedMenuItem == 7){
 
             if (systemState.ir_state.rightButton) {
                 systemState.ir_state.rightButton = false;
@@ -268,28 +284,6 @@ void handleConfigMenu() {
     }
 }
 
-
-
-void drawRtcSetMenu(struct tm* tm) {
-    clearDisplay(); // 全画面クリア
-
-    // 時計設定メニューを描画
-    gfx.setCursor(18, 40);
-    gfx.setTextSize(1);
-    gfx.setTextColor(TFT_WHITE, TFT_BLACK);
-    gfx.printf("RTC SETTING\n");
-    gfx.printf("YEAR: %04d\n", tm->tm_year + 1900);
-    gfx.printf("MONTH: %02d\n", tm->tm_mon + 1);
-    gfx.printf("DAY: %02d\n", tm->tm_mday);
-    gfx.printf("HOUR: %02d\n", tm->tm_hour);
-    gfx.printf("MIN: %02d\n", tm->tm_min);
-    gfx.printf("SEC: %02d\n", tm->tm_sec);
-
-    // 矢印を選択中の項目に描画
-    int arrowBaseX = 120; // 文字列の長さを基準に調整
-    int arrowY = 40 + menuValue * 16;
-    gfx.fillTriangle(arrowBaseX, arrowY, arrowBaseX + 10, arrowY + 5, arrowBaseX, arrowY + 10, TFT_YELLOW);
-}
 
 void clearRaceHistory() {
     for (int i = 0; i < 5; i++) {
