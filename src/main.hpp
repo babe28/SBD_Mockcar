@@ -249,6 +249,8 @@ void drawRtcSetMenu(struct tm* tm);
 // ディスプレイ更新
 void updateDisplay();          // ディスプレイの更新
 
+int getDaysInMonth(int year, int month);
+
 //IRAM main.cpp
 
 void IRAM_ATTR goalSensorISR1();

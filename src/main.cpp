@@ -191,7 +191,7 @@ void loop() {
         delay(100);
         //rtcTimeSet();             //RTC強制時間設定
         delay(500);
-        rtc_initialize();         //RTC初期化
+        //rtc_initialize();         //RTC初期化
         delay(500);
 
         if(rtc_read){

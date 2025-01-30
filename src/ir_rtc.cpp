@@ -132,7 +132,7 @@ void setInternalRTC() {
     timeinfo.tm_hour = REG_table[2];
     timeinfo.tm_min = REG_table[1];
     timeinfo.tm_sec = REG_table[0];*/
-
+    Serial.println("RTC SET Internal");
     struct timeval now = {mktime(&timeinfo), 0};
     settimeofday(&now, NULL); // ESP32の内蔵RTCに時刻を設定
 }
@@ -144,18 +144,38 @@ void updateInternalRtc(struct tm* tm) {
 }
 
 void updateExternalRtc(struct tm* tm) {
+   // 月は 0-11 なので +1 する
+    int adjustedMonth = tm->tm_mon + 1;
+    // 0日は無効なので、1日に補正
+    int adjustedDay = (tm->tm_mday < 1) ? 1 : tm->tm_mday;
+    int adjustedWday = (tm->tm_wday == 0) ? 7 : tm->tm_wday; // tm_wday(0=日曜)をDS1307形式(1=日曜)に変換
+
+
+    // **デバッグ出力（送信するデータを確認）**
+    Serial.println("=== Updating External RTC (DS1307) ===");
+    Serial.printf("Internal RTC: %04d/%02d/%02d %02d:%02d:%02d\n",
+                  tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+                  tm->tm_hour, tm->tm_min, tm->tm_sec);
+    Serial.printf("Writing to DS1307: %04d/%02d/%02d %02d:%02d:%02d\n",
+                  tm->tm_year + 1900, adjustedMonth, adjustedDay,
+                  tm->tm_hour, tm->tm_min, tm->tm_sec);
+
     Wire.beginTransmission(DS1307_ADDRESS);
     Wire.write(0x00); // レジスタの先頭アドレス
-
-    // 秒から年までBCD形式で送信
     Wire.write(decToBcd(tm->tm_sec));   // 秒
     Wire.write(decToBcd(tm->tm_min));   // 分
-    Wire.write(decToBcd(tm->tm_hour));  // 時
-    Wire.write(decToBcd(tm->tm_mday));  // 日
-    Wire.write(decToBcd(tm->tm_mon + 1)); // 月
+    Wire.write(decToBcd(tm->tm_hour));  // 時 (BCD format)
+        Wire.write(decToBcd(adjustedWday)); // **曜日（0=日曜→1=日曜に変換済み）**
+    Wire.write(decToBcd(adjustedDay));  // 日
+    Wire.write(decToBcd(adjustedMonth)); // 月（tm_monは0-11）
     Wire.write(decToBcd(tm->tm_year - 100)); // 年 (1900年基準から2000年基準に変換)
 
-    Wire.endTransmission();
+    int error = Wire.endTransmission(); // 送信終了 & エラーチェック
+    if (error == 0) {
+        Serial.println("OK External RTC updated successfully!");
+    } else {
+        Serial.printf("ERR I2C Write Error! Code: %d\n", error);
+    }
     Serial.println("External RTC updated!");
 }
 
