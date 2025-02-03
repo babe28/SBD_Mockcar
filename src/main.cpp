@@ -11,6 +11,7 @@
 * v0.8a 2025.1.13  赤外線受信機能・画面表示整理
 * v0.8c 2025.1.28  接続ピン整理・DFPlayer機能追加・赤外線受信関数調整・RTC追加
 * v0.8f 2025.1.28  DFPLayerライブラリカット・RTC関連追加・設定画面変更・シグナル追加
+* v0.8k 2025.2.03  RTC関数整理・処理変更
 * ------------ 今後の ----------------
 * センサー関連          4つつなぐ
 * シリアル関数関連      関数整備・外部からのコントロール？
@@ -188,13 +189,12 @@ void loop() {
         gfx.setTextSize(0.9);
         printCentering(0,120,"Initilizing...RTC");  //初期化中表示
         initializeHistory();        //レースヒストリー初期化
-        delay(100);
-        //rtcTimeSet();             //RTC強制時間設定
-        delay(500);
+
         //rtc_initialize();         //RTC初期化
         delay(500);
 
-        if(rtc_read){
+        if(rtc_read()){
+          delay(100);
           setInternalRTC();           //内蔵RTCへ
           printf("RTC Read OK\n");
         }else{

@@ -170,7 +170,7 @@ extern LGFX_Sprite sprite1;     //スプライト作成
 extern RingbufHandle_t IRbuffer;  //赤外線受信バッファ
 
 extern volatile bool resetFlag;                  //リセットボタン押されたかどうかの判定
-extern uint8_t REG_table[8];
+extern volatile uint8_t REG_table[8];
 extern const char *week[];
 extern struct tm *tm;
 extern time_t t;

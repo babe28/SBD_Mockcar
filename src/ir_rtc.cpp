@@ -2,7 +2,7 @@
 #include "main.hpp"
 
 
-uint8_t REG_table[8];                 //時間テーブルRTC
+volatile uint8_t REG_table[8] = {0};                 //時間テーブルRTC
 struct tm timeinfo;                   //内蔵RTC用時刻構造体
 const char *week[] = {"SUN","MON","TUE","WED","THR","FRI","SAT","NON"};
 
@@ -61,11 +61,11 @@ void rtcTimeSet(){
   Wire.write(0x00); //START_REGISTOR
 
   Wire.write(0x00); //秒
-  Wire.write(0x26); //分
-  Wire.write(0x00); //時
-  Wire.write(0x02); //週(SUN 00 MON 01 TUE 02)
-  Wire.write(0x30); //日
-  Wire.write(0x01); //月
+  Wire.write(0x45); //分
+  Wire.write(0x11); //時
+  Wire.write(0x01); //週(SUN 00 MON 01 TUE 02)
+  Wire.write(0x03); //日
+  Wire.write(0x02); //月
   Wire.write(0x25); //年 20xx年
 //  delay(1);
   err = Wire.endTransmission();
@@ -74,7 +74,6 @@ void rtcTimeSet(){
   }else{
     Serial.printf("\nRTC DATE WRITE\n");
   }
-
 }
 
 bool rtc_read(){
@@ -88,7 +87,8 @@ bool rtc_read(){
   if(err != 0){
     Serial.printf("RTC Read Error:%d\n",err);
     return false;
-  }else{
+  }
+
   Wire.requestFrom(DS1307_ADDRESS,7);
   delay(10);
   REG_table[0] = Wire.read(); //秒
@@ -98,43 +98,66 @@ bool rtc_read(){
   REG_table[4] = Wire.read(); //日
   REG_table[5] = Wire.read(); //月
   REG_table[6] = Wire.read(); //年
-  Serial.printf("20%02X/%02X/%02X ( - ) %02X:%02X:%02X\n",
-                REG_table[6],              // 年 (16進数形式)
-                REG_table[5],              // 月 (16進数形式)
-                REG_table[4],              // 日 (16進数形式)
-                REG_table[2],              // 時 (16進数形式)
-                REG_table[1],              // 分 (16進数形式)
-                REG_table[0]);             // 秒 (16進数形式)
 
-    if(REG_table[6] == 0x00 || REG_table[6] == 0xFF){
-      Serial.println("RTC is not working.");
-      return false;
-    }
+  Serial.printf("ExternalRTC:20%02X/%02X/%02X  %02X:%02X:%02X\n",
+                REG_table[6], // 年 (16進数形式)
+                REG_table[5], // 月 (16進数形式)
+                REG_table[4], // 日 (16進数形式)
+                REG_table[2], // 時 (16進数形式)
+                REG_table[1], // 分 (16進数形式)
+                REG_table[0]); // 秒 (16進数形式)
+
+  // RTCが動作していない場合の処理
+  if(REG_table[6] == 0x00 || REG_table[6] == 0xFF){
+    Serial.println("RTC is not working.");
+    return false;
+  }
+
+  // 年が 2025 (0x25) 未満の場合、RTCを2025年1月1日に設定
+  if(REG_table[6] < 0x25){
+    Serial.println("RTC year is before 2025. Setting to 2025/01/01.");
+    rtcTimeSet();
+    return false;  // RTC設定後は再度読み込む必要があるためfalseを返す
   }
 
   return true;
 }
 
 void setInternalRTC() {
-    
+  Serial.println("setInternalRTC() called");
+  Serial.printf("REG_table before setting: ");
+  for (int i = 0; i < 7; i++) {
+    Serial.printf("%02X ", REG_table[i]);
+  }
+  Serial.println("");
+
     timeinfo.tm_year = bcdToDec(REG_table[6]) + 2000 - 1900; // 年（1900年基準）
     timeinfo.tm_mon = bcdToDec(REG_table[5]) - 1;            // 月（0-11）
     timeinfo.tm_mday = bcdToDec(REG_table[4]);               // 日
     timeinfo.tm_hour = bcdToDec(REG_table[2]);               // 時
     timeinfo.tm_min = bcdToDec(REG_table[1]);                // 分
     timeinfo.tm_sec = bcdToDec(REG_table[0]);                // 秒
-    
-    timeinfo.tm_isdst = -1;                                  // サマータイム情報を無効化
 
-    /* timeinfo.tm_year = REG_table[6] + 2000 - 1900;
+    timeinfo.tm_isdst = -1;                                  // サマータイム情報を無効化
+    /*
+    timeinfo.tm_year = REG_table[6] + 2000 - 1900;
     timeinfo.tm_mon = REG_table[5] - 1;
     timeinfo.tm_mday = REG_table[4];
     timeinfo.tm_hour = REG_table[2];
     timeinfo.tm_min = REG_table[1];
-    timeinfo.tm_sec = REG_table[0];*/
+    timeinfo.tm_sec = REG_table[0];
+    */
     Serial.println("RTC SET Internal");
     struct timeval now = {mktime(&timeinfo), 0};
     settimeofday(&now, NULL); // ESP32の内蔵RTCに時刻を設定
+
+    Serial.printf(":REGis 20%02X/%02X/%02X  %02X:%02X:%02X\n",
+                REG_table[6], // 年 (16進数形式)
+                REG_table[5], // 月 (16進数形式)
+                REG_table[4], // 日 (16進数形式)
+                REG_table[2], // 時 (16進数形式)
+                REG_table[1], // 分 (16進数形式)
+                REG_table[0]); // 秒 (16進数形式)
 }
 void updateInternalRtc(struct tm* tm) {
     time_t t = mktime(tm); // struct tm を time_t に変換
@@ -192,6 +215,7 @@ byte decToBcd(int val) {
 }
 
 void readInternalRTC() {
+    Serial.println("readInternalRTC exec.");
     if (!getLocalTime(&timeinfo)) {
         Serial.println("Failed to obtain time");
         return;
