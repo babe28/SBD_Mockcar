@@ -14,9 +14,9 @@
 void initializeDFPlayer() {
     Serial.println("DFPlayer initializing...");
     sendCommand(0x0C,0); //Reset DFPlayer
-    delay(3800); // DFPlayerの初期化には時間がかかる
-    if(checkForACK(2000)){
-        Serial.println("DFPlayer initialized!");
+    delay(3900); // DFPlayerの初期化には時間がかかる
+    if(checkForACK(5000)){
+        Serial.println("DFPlayer initializeComplete!!");
     }
     delay(300);
     setVolumeMP3(5); // ボリュームを設定
@@ -44,14 +44,17 @@ void sendCommand(uint8_t command, uint16_t parameter = 0) {
   // パケットを送信
   for (int i = 0; i < 10; i++) {
     Serial2.write(packet[i]);
+    delayMicroseconds(5);
   }
-
-  Serial.println("Command sent!");
+  Serial.println("DF Player Command sent!");
 }
 
 void playMP3(int track = 0) {
     sendCommand(PLAY_CMD, track);
     systemState.race.bgmFlag = true;
+    if(SerialDebug){
+      Serial.printf("Play Command:%d \n",track);
+    }
 }
 
 void stopMP3() {
@@ -93,6 +96,9 @@ void isPlaying() {
 
 void setVolumeMP3(int volume = 5) {
     sendCommand(VOLUME_CMD, volume);
+    if(SerialDebug){
+      Serial.printf("VolumeSet:%d \n",volume);
+    }
 //    if(checkForACK(1000)){
 //        Serial.println("Volume set!");
 //    }else{
@@ -102,7 +108,7 @@ void setVolumeMP3(int volume = 5) {
 
 
 bool checkForACK(unsigned long timeout = 2000) {
-  static uint8_t ackBuffer[10]; // ACK格納用バッファ
+  static uint8_t ackBuffer[16]; // ACK格納用バッファ
   static size_t ackIndex = 0;   // バッファ内の現在位置
   unsigned long startTime = millis();
 
@@ -124,7 +130,6 @@ bool checkForACK(unsigned long timeout = 2000) {
       if (ackIndex >= sizeof(ackBuffer)) {
         Serial.println("Buffer overflow detected, resetting.");
         ackIndex = 0; // バッファをリセット
-        delay(50);
       }
 
       // ACKの終了バイトを確認

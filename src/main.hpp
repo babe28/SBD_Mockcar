@@ -75,6 +75,8 @@ struct TimerHistory {
     int raceNumber;                     // レース番号
 };
 
+
+
 // センサー状態を管理
 struct Sensor {
     unsigned long lastTriggerTime = 0;  // 最後にトリガーされた時刻
@@ -89,7 +91,7 @@ struct Button {
     bool isLongPressed = false;       // 長押しされているか
 };
 
-struct IRs {
+struct IRs {//リモコン
     unsigned long lastReceiveTime = 0; // 最後に受信した時刻
     bool isReceived = false;           // 受信したか
     bool upButton = false;             //上ボタン
@@ -123,13 +125,11 @@ struct Config {
     bool isEditing = false;          // 現在の項目を編集中かどうか
     bool BTmode = false;
     int selectedMenuItem = 0;        // 現在選択中のメニュー項目
-    float sensorGainStart = 1.0f;    // スタートセンサーのゲイン
-    float sensorGainGoal = 1.0f;     // ゴールセンサーのゲイン
     int boardOPMode = 0;            //ボード動作モード
     int bgmVolume = 0;              //Volume
     bool bgmDucking  = false;       //BGMをアイドル時にダッキングするかどうか。
     unsigned long bestTime = 0;      // ボード最速タイム
-    int oncycle = 0;
+    int oncycle = 0;                //起動回数
 };
 
 
@@ -184,7 +184,7 @@ void drawRaceScreen();          //レース画面の下地
 void drawIdleScreen();          //前回レースの結果表示または待機状態
 void updateTimers();                // タイマーの更新と表示
 void drawRaceHistory();         //
-void drawStatusBar(int racecount,String message,String statusMode,unsigned long time_fastest);
+void drawStatusBar();
 void updateMovingBars();
 void clearDisplay();
 void setFontNormal(double fontSize = 1.0);     //フォントサイズいける色も一応初期化される

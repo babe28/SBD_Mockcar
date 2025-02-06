@@ -43,7 +43,7 @@ void displaySplashScreen() {
     delay(500);
 
     gfx.setTextSize(0.9);
-    printCentering(0,150,"Initilizing Boad...");
+    printCentering(0,150,"Board StartUP!");
     for(int i=0;i < 180;i++){ 
       gfx.setColor(TFT_CYAN);
       gfx.fillRect(61,172,i + 60,5);           //意味無しプログレスバー 172+240
@@ -105,17 +105,17 @@ void updateDisplay() {//描画を分けるところ。描画関連はまずこ�
             }else{
                 drawIdleScreen();
             }
-            drawStatusBar(systemState.race.totalRaceCount,"","Ready",systemState.config.bestTime);
+            drawStatusBar();
             break;
         case DisplayState::Setup:
             handleConfigMenu();      //設定画面描画
-            drawStatusBar(systemState.race.totalRaceCount,"","Setup",systemState.config.bestTime);
+            drawStatusBar();
             break;
         case DisplayState::Racing:
             drawRaceScreen();       // レース画面を描画（下地）
             updateTimers();         // タイムを更新（タイム部分だけ上書き）
                                     //　タイマーが３つ止まったらendRace();
-            drawStatusBar(systemState.race.totalRaceCount,"","Race",systemState.config.bestTime);
+            drawStatusBar();
             updateMovingBars();
             break;
         case DisplayState::History:
@@ -253,7 +253,7 @@ void updateTimers() {   //レース中のタイマー管理
 }
 
 
-void drawStatusBar(int raceCount, String message, String statusMode, unsigned long fastestTime) {
+void drawStatusBar() {
     int x = 0;    // 画面左側
     int y = gfx.height() - 18; // ステータスバーのY座標
     int screenWidth = gfx.width();
@@ -261,46 +261,66 @@ void drawStatusBar(int raceCount, String message, String statusMode, unsigned lo
     unsigned long currentTime = millis();   //描画タイム用
     gfx.setFont(&fonts::AsciiFont8x16);
     gfx.setTextSize(1);
-    unsigned long seconds = fastestTime / 1000;
-    unsigned long milliseconds = fastestTime % 1000;
+    unsigned long seconds = systemState.config.bestTime / 1000;
+    unsigned long milliseconds = systemState.config.bestTime % 1000;
 
       // 前回更新からの経過時間を計算
     if (currentTime - lastUpdateTime >= updateInterval) {
         lastUpdateTime = currentTime; // 更新時刻を記録
         // 状態に応じてステータスバーを描画
-        if (statusMode == "Ready") {
-            gfx.fillRect(x, y, screenWidth, barHeight, TFT_SKYBLUE);
-            gfx.setTextColor(TFT_BLACK, TFT_SKYBLUE);
-            gfx.setCursor(5, y + 2);
-            gfx.printf("READY.. FASTEST: %02lu.%03lu <RACECOUNT:%d>", seconds, milliseconds,raceCount);
+        if(systemState.config.HistoryMode){
             
-        } else if (statusMode == "Race") {
+        } else if(systemState.race.raceFlag){
             gfx.fillRect(x, y, screenWidth, barHeight, TFT_VIOLET);
             gfx.setTextColor(TFT_BLACK, TFT_VIOLET);
             gfx.setCursor(5, y + 2);
             //gfx.printf("COUNT:%d FASTEST: %02lu.%03lu <%s>", raceCount, seconds, milliseconds, message.c_str());
-            gfx.printf("START! <RACECOUNT:%d> / FASTEST: %02lu.%03lu",raceCount, seconds, milliseconds);
-        } else if (statusMode == "Setup") {
+            gfx.printf("START! <GOALCOUNT:%d> / FASTEST : %02lu.%03lu",systemState.race.goalCount + 1, seconds, milliseconds);
+        } else if(systemState.config.setupMode){
             gfx.fillRect(x, y, screenWidth, barHeight, TFT_DARKGRAY);
             gfx.setTextColor(TFT_WHITE, TFT_DARKGRAY);
             gfx.setCursor(5, y + 2);
             gfx.printf("SETUP MODE");
-        } else if (statusMode == "Warning") {
+        } else{
+            gfx.fillRect(x, y, screenWidth, barHeight, TFT_SKYBLUE);
+            gfx.setTextColor(TFT_BLACK, TFT_SKYBLUE);
+            gfx.setCursor(5, y + 2);
+            gfx.printf("FASTEST TIME: %02lu.%03lu <RACECOUNT:%d>", seconds, milliseconds,systemState.race.totalRaceCount);
+        }
+
+        if(systemState.config.boardOPMode == 3){
             gfx.fillRect(x, y, screenWidth, barHeight, TFT_ORANGE);
             gfx.setTextColor(TFT_BLACK, TFT_ORANGE);
             gfx.setCursor(5, y + 2);
-            gfx.printf("WARNING: %s", message.c_str());
-        } else if (statusMode == "Debug") {
-            gfx.fillRect(x, y, screenWidth, barHeight, TFT_BLUE);
-            gfx.setTextColor(TFT_WHITE, TFT_BLUE);
-            gfx.setCursor(5, y + 2);
-            gfx.printf("DEBUG: Btn ");
+            gfx.printf("WARNING:I/O ERROR! CHECK CONNECT");
         }
         
     }
 }
 
 void drawRaceHistory() {
+        u_int8_t y_offset = 20;
+        setFontJapan();
+        gfx.setTextColor(TFT_BLACK,TFT_WHITE);
+        gfx.setCursor(317,3 + y_offset);
+        gfx.printf("戻");
+        gfx.setCursor(317,3 + y_offset * 2);
+        gfx.printf("る");
+        gfx.setCursor(317,3 + y_offset * 3);
+        gfx.printf("に");
+        gfx.setCursor(317,3 + y_offset * 4);
+        gfx.printf("は");
+        gfx.setCursor(317,3 + y_offset * 5);
+        gfx.printf("決");
+        gfx.setCursor(317,3 + y_offset * 6);
+        gfx.printf("定");
+        gfx.setCursor(317,3 + y_offset * 7);
+        gfx.printf("ボ");
+        gfx.setCursor(317,3 + y_offset * 8);
+        gfx.printf("タ");
+        gfx.setCursor(317,3 + y_offset * 9);
+        gfx.printf("ン");
+
         setFontNormal();
         printCentering(0,5,"--- Race History (LAST 7) ---");
         gfx.setCursor(20, 22);
@@ -309,7 +329,7 @@ void drawRaceHistory() {
         // 最速タイムの特定
         int fastestRaceIndex = -1;
         int fastestCarIndex = -1;
-        unsigned long fastestTime = 999000; // 初期値を最大に設定
+        unsigned long fastestTime = 999999; // 初期値を最大に設定
 
         for (int i = 0; i < 7; i++) {
             int historyIndex = (systemState.currentHistoryIndex - i + 7) % 7;
@@ -351,13 +371,13 @@ void drawRaceHistory() {
 
         // 最速タイムの表示
         gfx.setTextColor(TFT_BLACK, TFT_YELLOW);
-        gfx.setCursor(29, yOffset + 135);
+        gfx.setCursor(20, yOffset + 128);
         gfx.setTextSize(1.4);
 
         gfx.printf(" Fastest Time : %02lu.%03lu sec",
                 fastestTime / 1000, fastestTime % 1000);
 
-        gfx.setCursor(29, yOffset + 160);
+        gfx.setCursor(29, yOffset + 153);
         gfx.printf("Todays Fastest: %02lu.%03lu sec",
                 systemState.config.bestTime / 1000,
                 systemState.config.bestTime % 1000);

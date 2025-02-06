@@ -124,13 +124,6 @@ bool rtc_read(){
 }
 
 void setInternalRTC() {
-  Serial.println("setInternalRTC() called");
-  Serial.printf("REG_table before setting: ");
-  for (int i = 0; i < 7; i++) {
-    Serial.printf("%02X ", REG_table[i]);
-  }
-  Serial.println("");
-
     timeinfo.tm_year = bcdToDec(REG_table[6]) + 2000 - 1900; // 年（1900年基準）
     timeinfo.tm_mon = bcdToDec(REG_table[5]) - 1;            // 月（0-11）
     timeinfo.tm_mday = bcdToDec(REG_table[4]);               // 日
@@ -150,14 +143,6 @@ void setInternalRTC() {
     Serial.println("RTC SET Internal");
     struct timeval now = {mktime(&timeinfo), 0};
     settimeofday(&now, NULL); // ESP32の内蔵RTCに時刻を設定
-
-    Serial.printf(":REGis 20%02X/%02X/%02X  %02X:%02X:%02X\n",
-                REG_table[6], // 年 (16進数形式)
-                REG_table[5], // 月 (16進数形式)
-                REG_table[4], // 日 (16進数形式)
-                REG_table[2], // 時 (16進数形式)
-                REG_table[1], // 分 (16進数形式)
-                REG_table[0]); // 秒 (16進数形式)
 }
 void updateInternalRtc(struct tm* tm) {
     time_t t = mktime(tm); // struct tm を time_t に変換

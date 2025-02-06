@@ -2,7 +2,7 @@
 #include "main.hpp"
 
 /* ****************************************************
-* モックカーレース用プログラム v0.8a
+* モックカーレース用プログラム v0.8k
 * v0.2 2025/1/3   プログラム作成・基本関数作成
 * v0.5 2025/1/6   関数完成
 * v0.6 2025/1/7   関数整理・センサー入力
@@ -27,11 +27,9 @@ int goalcount = 0;                    //ゴール通過台数　MAX2(0-2)
 int raceTotalCount = 0;               //起動後何回レースしたか
 RingbufHandle_t IRbuffer=NULL;        //赤外線受信バッファ
 
-
-
 // 描画用ステータス
 unsigned long lastUpdateTime = 0;     //前回更新時刻格納用
-const int refreshRate = 15;           //リフレッシュレート（Hz）
+const int refreshRate = 10;           //リフレッシュレート（Hz）
 const unsigned long updateInterval = 1000 / refreshRate; // 更新間隔（ms）
 
 //設定保存用の変数（EEPROMの後継ライブラリPreferences）まずは変数定義
@@ -47,11 +45,11 @@ SystemState systemState;
       cfg.memory_width  = SCREEN_WIDTH; // 出力解像度 360幅
       cfg.memory_height = SCREEN_HEIGHT; // 出力解像度 240高さ
       // 実際に利用する解像度を設定;
-      cfg.panel_width  = SCREEN_WIDTH - 15;  // 実際に使用する幅   (memory_width と同値か小さい値を設定する)
-      cfg.panel_height = SCREEN_HEIGHT - 15;  // 実際に使用する高さ (memory_heightと同値か小さい値を設定する)
+      cfg.panel_width  = SCREEN_WIDTH - 16;  // 実際に使用する幅   (memory_width と同値か小さい値を設定する)
+      cfg.panel_height = SCREEN_HEIGHT - 16;  // 実際に使用する高さ (memory_heightと同値か小さい値を設定する)
       // 表示位置オフセット量を設定;
-      cfg.offset_x = 0;       // 表示位置を右にずらす量 (初期値 0)
-      cfg.offset_y = 0;       // 表示位置を下にずらす量 (初期値 0)
+      cfg.offset_x = 8;       // 表示位置を右にずらす量 (初期値 0)
+      cfg.offset_y = 8;       // 表示位置を下にずらす量 (初期値 0)
       _panel_instance.config(cfg);
     }
 
@@ -89,7 +87,6 @@ Sensor startSensor;       //スタートセンサー
 
   /* シリアルデバッグを有効化するならここ */
 bool SerialDebug = true;                        //シリアルデバッグモード
-
 
 /* ********************************************************* */
 /* *********** ボードセットアップここから **********************/
@@ -142,10 +139,12 @@ void setup(void)
 
   SerialBT.begin("MockcarRACETimer");               //この名前でBluetoothの一覧に出てくる
   Serial.println("Bluetooth Start!");
-  Serial.println("I/O complete");
+  Serial.println("You can find BT 'MockcarRACETimer'");
+  Serial.println("I/O setting complete");
 
   //変数初期化
-  int boardOPmode = 1;                        //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
+  int boardOPmode = 0;                        //ボード動作モード　0=NORMAL
+                                              //1=LEGACY,2=OPTIONAL,3=何らかのエラー
 
   systemState.race.startTime = 0;             //スタートタイム初期化
   for (int i = 0; i < 3; i++) {
@@ -155,6 +154,7 @@ void setup(void)
       systemState.race.goalSensors[i].lastTriggerTime = 0;  //ゴールセンサーの時間
   }
   systemState.config.setupMode = false;       //設定モードにいるか判定
+  systemState.race.raceFlag = false;
   systemState.config.selectedMenuItem = 0;    //設定モードのメニュー選択用
 
   SerialBT.println("setup function finished.");
@@ -166,7 +166,41 @@ void setup(void)
 
   Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );
   Serial.printf("heap_caps_get_largest_free_block(MALLOC_CAP_DMA):%d\n", heap_caps_get_largest_free_block(MALLOC_CAP_DMA) );
+  Serial.printf("Free heap: %d bytes\n", esp_get_free_heap_size());
+  Serial.printf("Largest free block: %d bytes\n", heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+  uint64_t chipid;
+  chipid=ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
+  Serial.printf("ESP32 Chip ID = %04X\r\n",(uint16_t)(chipid>>32));//print High 2 bytes
+ 
+  Serial.printf("Chip Revision %d\r\n", ESP.getChipRevision());
+  esp_chip_info_t chip_info;
+  esp_chip_info(&chip_info);
+  Serial.printf("Number of Core: %d\r\n", chip_info.cores);
+  Serial.printf("CPU Frequency: %d MHz\r\n", ESP.getCpuFreqMHz());  
+  Serial.printf("Flash Chip Size = %d byte\r\n", ESP.getFlashChipSize());
+  Serial.printf("Flash Frequency = %d Hz\r\n", ESP.getFlashChipSpeed());
+  Serial.printf("ESP-IDF version = %s\r\n", esp_get_idf_version());
 
+uint8_t mac0[6];
+  esp_efuse_mac_get_default(mac0);
+  Serial.printf("Default Mac Address = %02X:%02X:%02X:%02X:%02X:%02X\r\n", mac0[0], mac0[1], mac0[2], mac0[3], mac0[4], mac0[5]);
+ 
+  uint8_t mac3[6];
+  esp_read_mac(mac3, ESP_MAC_WIFI_STA);
+  Serial.printf("[Wi-Fi Station] Mac Address = %02X:%02X:%02X:%02X:%02X:%02X\r\n", mac3[0], mac3[1], mac3[2], mac3[3], mac3[4], mac3[5]);
+ 
+  uint8_t mac4[7];
+  esp_read_mac(mac4, ESP_MAC_WIFI_SOFTAP);
+  Serial.printf("[Wi-Fi SoftAP] Mac Address = %02X:%02X:%02X:%02X:%02X:%02X\r\n", mac4[0], mac4[1], mac4[2], mac4[3], mac4[4], mac4[5]);
+ 
+  uint8_t mac5[6];
+  esp_read_mac(mac5, ESP_MAC_BT);
+  Serial.printf("[Bluetooth] Mac Address = %02X:%02X:%02X:%02X:%02X:%02X\r\n", mac5[0], mac5[1], mac5[2], mac5[3], mac5[4], mac5[5]);
+ 
+  uint8_t mac6[6];
+  esp_read_mac(mac6, ESP_MAC_ETH);
+  Serial.printf("[Ethernet] Mac Address = %02X:%02X:%02X:%02X:%02X:%02X\r\n", mac6[0], mac6[1], mac6[2], mac6[3], mac6[4], mac6[5]);
+  
   delay(500);                    //デバッグ用　取ってOK
   digitalWrite(BULTIN_LED,LOW);  //内蔵LED OFF
 
@@ -187,12 +221,10 @@ void loop() {
         //resetRaceState();           // レース状態の初期化・変数の初期化
         systemState.race.totalRaceCount = 0;        //レース回数初期化
         gfx.setTextSize(0.9);
-        printCentering(0,120,"Initilizing...RTC");  //初期化中表示
         initializeHistory();        //レースヒストリー初期化
+        delay(100);
 
-        //rtc_initialize();         //RTC初期化
-        delay(500);
-
+        printCentering(0,120,"Initilizing...RTC");  //初期化中表示
         if(rtc_read()){
           delay(100);
           setInternalRTC();           //内蔵RTCへ
@@ -200,17 +232,16 @@ void loop() {
         }else{
           printf("RTC Read Error\n");
         }
-        delay(500);
+        delay(100);
 
         initializeDFPlayer();       //DFPlayer初期化
         printCentering(0,120,"Initilizing...MP3PLAYER");  //初期化中表示
 
         firstRun = false;               //初期フラグを解除
         gfx.fillScreen(TFT_BLACK);  
-        Serial.println("First Run Complete.");
+        Serial.println("Initialize Run Complete.");
         drawIdleScreen();               //初期画面を描画
         digitalWrite(LED_GREEN,LOW);
-
     }
 
     digitalWrite(LED_GREEN,HIGH);   //LED点灯（メインルーチン速度測定用）
@@ -227,19 +258,11 @@ void loop() {
       digitalWrite(LED_BLUE,LOW);
     if(!systemState.race.raceFlag){
       ReceiveIR(systemState);
-      //Analyze_IR();
     }
 
     irCheck(); //システムステート変更
     checkReadyButton(); //スタート(レディ）ボタンが押されたかどうか
-/*
-    Serial.printf("STARTSENSOR:%d\n",digitalRead(START_SENS));
-    Serial.printf("GOALSENSOR1:%d\n",digitalRead(GOAL_SENS_1));
-    Serial.printf("GOALSENSOR2:%d\n",digitalRead(GOAL_SENS_2));
-    Serial.printf("GOALSENSOR3:%d\n",digitalRead(GOAL_SENS_3));
 
-    delay(100);
-    */
 
    if(systemState.race.goalSensors[0].isSense ||
    systemState.race.goalSensors[1].isSense ||
@@ -272,6 +295,11 @@ void irCheck(){
         systemState.ir_state.playButton = false;
         stopMP3();
         systemState.race.bgmFlag = false;
+  Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );
+  Serial.printf("heap_caps_get_largest_free_block(MALLOC_CAP_DMA):%d\n", heap_caps_get_largest_free_block(MALLOC_CAP_DMA) );
+  Serial.printf("Free heap: %d bytes\n", esp_get_free_heap_size());
+  Serial.printf("Largest free block: %d bytes\n", heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+
       }
     systemState.ir_state.isReceived = false;
     }

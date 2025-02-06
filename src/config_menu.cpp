@@ -89,10 +89,6 @@ void handleConfigMenu() {
     gfx.setTextColor(TFT_RED,TFT_BLACK);
     printCentering(0,baseY + 144,"# # # # # SETUP EXIT # # # # # ");                      //項目番号１２
 
-    //ゲインは+50まで(5ステップ)
-    if(systemState.config.sensorGainStart > 50){
-        systemState.config.sensorGainStart = 0;
-    }
     //BGMは20最大
     if(systemState.config.bgmVolume > 20){
         systemState.config.bgmVolume = 0;
@@ -303,7 +299,7 @@ if(systemState.ir_state.leftButton){
         }else if(systemState.config.selectedMenuItem == 8){ //RECALL DEF
             //初期設定にもどす
             systemState.config.bgmVolume = 5;
-            systemState.config.sensorGainStart=0;
+
         }else if(systemState.config.selectedMenuItem == 9){
             //セットアップモード抜ける
             delay(10);

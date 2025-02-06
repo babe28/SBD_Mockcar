@@ -49,8 +49,6 @@ void checkStartSensor() {
 }
 
 
-
-
 //割り込み使用に変更から更に戻した
 void checkResetButton() {
     static unsigned long lastTriggerTime = 0;
