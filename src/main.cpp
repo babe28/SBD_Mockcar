@@ -12,17 +12,16 @@
 * v0.8c 2025.1.28  接続ピン整理・DFPlayer機能追加・赤外線受信関数調整・RTC追加
 * v0.8f 2025.1.28  DFPLayerライブラリカット・RTC関連追加・設定画面変更・シグナル追加
 * v0.8k 2025.2.03  RTC関数整理・処理変更
+* v0.8l 2025.2.10
 * ------------ 今後の ----------------
-* センサー関連          4つつなぐ
 * シリアル関数関連      関数整備・外部からのコントロール？
 * 設定画面・履歴など    チラツキ防止・設定項目日本語化・英語選択
-* 
 ***************************************************** */
 
 //割り込みハンドラ内の変数はvolatileで最適化防止
 volatile bool resetFlag = false;                  //リセットボタン押されたかどうかの判定
 
-bool firstRun = true;                 //起動後初回実行かどうかを判定
+bool isFirstRun = true;                 //起動後初回実行かどうかを判定
 int goalcount = 0;                    //ゴール通過台数　MAX2(0-2)
 int raceTotalCount = 0;               //起動後何回レースしたか
 RingbufHandle_t IRbuffer=NULL;        //赤外線受信バッファ
@@ -164,18 +163,17 @@ void setup(void)
   delay(100);
   displaySplashScreen();              //起動時画面読み込み
 
+  if(SerialDebug){
   Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );
   Serial.printf("heap_caps_get_largest_free_block(MALLOC_CAP_DMA):%d\n", heap_caps_get_largest_free_block(MALLOC_CAP_DMA) );
   Serial.printf("Free heap: %d bytes\n", esp_get_free_heap_size());
   Serial.printf("Largest free block: %d bytes\n", heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
   uint64_t chipid;
   chipid=ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
-  Serial.printf("ESP32 Chip ID = %04X\r\n",(uint16_t)(chipid>>32));//print High 2 bytes
- 
+  Serial.printf("ESP32 Chip ID = %04X\r\n",(uint16_t)(chipid>>32));//print High 2 bytes 
   Serial.printf("Chip Revision %d\r\n", ESP.getChipRevision());
   esp_chip_info_t chip_info;
   esp_chip_info(&chip_info);
-  Serial.printf("Number of Core: %d\r\n", chip_info.cores);
   Serial.printf("CPU Frequency: %d MHz\r\n", ESP.getCpuFreqMHz());  
   Serial.printf("Flash Chip Size = %d byte\r\n", ESP.getFlashChipSize());
   Serial.printf("Flash Frequency = %d Hz\r\n", ESP.getFlashChipSpeed());
@@ -200,7 +198,9 @@ uint8_t mac0[6];
   uint8_t mac6[6];
   esp_read_mac(mac6, ESP_MAC_ETH);
   Serial.printf("[Ethernet] Mac Address = %02X:%02X:%02X:%02X:%02X:%02X\r\n", mac6[0], mac6[1], mac6[2], mac6[3], mac6[4], mac6[5]);
-  
+  }
+  //シリアルデバッグ有効でデバッグ情報表示
+
   delay(500);                    //デバッグ用　取ってOK
   digitalWrite(BULTIN_LED,LOW);  //内蔵LED OFF
 
@@ -217,17 +217,16 @@ uint8_t mac0[6];
 
 void loop() {
     // 起動時の初期化処理
-    if (firstRun) {
+    if (isFirstRun) {
         //resetRaceState();           // レース状態の初期化・変数の初期化
         systemState.race.totalRaceCount = 0;        //レース回数初期化
-        gfx.setTextSize(0.9);
         initializeHistory();        //レースヒストリー初期化
         delay(100);
 
         printCentering(0,120,"Initilizing...RTC");  //初期化中表示
         if(rtc_read()){
           delay(100);
-          setInternalRTC();           //内蔵RTCへ
+          setInternalRTC();           //内蔵RTCにセット
           printf("RTC Read OK\n");
         }else{
           printf("RTC Read Error\n");
@@ -237,27 +236,24 @@ void loop() {
         initializeDFPlayer();       //DFPlayer初期化
         printCentering(0,120,"Initilizing...MP3PLAYER");  //初期化中表示
 
-        firstRun = false;               //初期フラグを解除
+        isFirstRun = false;               //初期フラグを解除
         gfx.fillScreen(TFT_BLACK);  
         Serial.println("Initialize Run Complete.");
         drawIdleScreen();               //初期画面を描画
         digitalWrite(LED_GREEN,LOW);
     }
 
+
     digitalWrite(LED_GREEN,HIGH);   //LED点灯（メインルーチン速度測定用）
-    checkStartSensor();     // スタートセンサーの状態を確認
-    checkResetButton();     // リセットボタンが押されたかどうか・ボタン自体は割り込み
-    updateDisplay();        //タイマーと描画関連全般
+    checkStartSensor();             // スタートセンサーの状態を確認
+    checkResetButton();             // リセットボタンが押されたかどうか
+    updateDisplay();                //タイマーと描画関連全般
 
-    digitalWrite(LED_GREEN,LOW);   //LED点灯（メインルーチン速度測定用）
+    digitalWrite(LED_GREEN,LOW);   //LED消灯（メインルーチン速度測定用）
+    digitalWrite(LED_BLUE,LOW);
 
-      //printf("reset=%d",digitalRead(RESET_BUTTON_PIN));
-
-
-      delay(10);
-      digitalWrite(LED_BLUE,LOW);
     if(!systemState.race.raceFlag){
-      ReceiveIR(systemState);
+      ReceiveIR(systemState);       //ReceiveIRは時間かかるのでrace中は無効化
     }
 
     irCheck(); //システムステート変更
@@ -269,6 +265,9 @@ void loop() {
    systemState.race.goalSensors[2].isSense){
     digitalWrite(LED_BLUE,HIGH);
    }
+
+   delay(10);
+
 }
 
 
@@ -295,10 +294,10 @@ void irCheck(){
         systemState.ir_state.playButton = false;
         stopMP3();
         systemState.race.bgmFlag = false;
-  Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );
-  Serial.printf("heap_caps_get_largest_free_block(MALLOC_CAP_DMA):%d\n", heap_caps_get_largest_free_block(MALLOC_CAP_DMA) );
-  Serial.printf("Free heap: %d bytes\n", esp_get_free_heap_size());
-  Serial.printf("Largest free block: %d bytes\n", heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+        Serial.printf("heap_caps_get_free_size(MALLOC_CAP_DMA):%d\n", heap_caps_get_free_size(MALLOC_CAP_DMA) );
+        Serial.printf("heap_caps_get_largest_free_block(MALLOC_CAP_DMA):%d\n", heap_caps_get_largest_free_block(MALLOC_CAP_DMA) );
+        Serial.printf("Free heap: %d bytes\n", esp_get_free_heap_size());
+        Serial.printf("Largest free block: %d bytes\n", heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 
       }
     systemState.ir_state.isReceived = false;

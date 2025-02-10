@@ -14,7 +14,7 @@
 #ifndef INCLUDED_MAIN_HPP
 #define INCLUDED_MAIN_HPP
 
-#include <Arduino.h>                //
+#include <Arduino.h>
 #include <esp32-hal.h>              //割り込み関連
 #include <BluetoothSerial.h>        //
 #include <Preferences.h>            //内蔵EEPROM保存用
@@ -56,13 +56,6 @@
 #define SCREEN_HEIGHT 240
 
 #define DS1307_ADDRESS 0x68
-#define RTC_REGISTER_SECOND 0x00
-#define RTC_REGISTER_MINUTE 0x01
-#define RTC_REGISTER_HOUR 0x02
-#define RTC_REGISTER_WEEK 0x03
-#define RTC_REGISTER_DAY 0x04
-#define RTC_REGISTER_MONTH 0x05
-#define RTC_REGISTER_YEAR 0x06
 #define RTC_REGISTER_CONTROL 0x07
 
 // タイマー状態を管理
@@ -74,8 +67,6 @@ struct TimerHistory {
     unsigned long times[3];             // 各車両のタイム
     int raceNumber;                     // レース番号
 };
-
-
 
 // センサー状態を管理
 struct Sensor {
@@ -157,7 +148,6 @@ const int GOAL_SENS_PINS[3] = {GOAL_SENS_1, GOAL_SENS_2, GOAL_SENS_3};
 
 extern bool SerialDebug;               //シリアルデバッグモード
 
-
 class LGFX : public lgfx::LGFX_Device {
 public:
   LGFX();
@@ -198,7 +188,6 @@ void stopTimer(int timerId);
 bool isSensorTriggered();
 void disableGoalSensorInterrupts();
 void enableGoalSensorInterrupts();
-void ReceiveIRTask(void *pvParameters);
 
 //mp3_player.cpp
 void initializeDFPlayer();
@@ -229,7 +218,6 @@ void checkReadyButton();
 void initializeHistory();
 void ReceiveIR(SystemState &systemState);
 void irCheck();
-void analyze_IR();
 void rtcTimeSet();
 void rtc_initialize();
 bool rtc_read();

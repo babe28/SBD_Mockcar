@@ -1,6 +1,6 @@
 /*  設定画面関連
-*   mockcar-race-program v0.2
-*   graphic.cpp
+*   mockcar-race-program v0.8
+*   
 */
 #include "main.hpp"
 
@@ -13,10 +13,8 @@ void handleConfigMenu() {
     static bool mp3Changed = false;
     static bool rtcInitialized = false;
 
-
     if (!isConfigScreenInitialized) {
         gfx.fillScreen(TFT_BLACK);
-                //初回クリア
         //t = time(NULL);           // 現在時刻を取得
         //tm = localtime(&t);       // `tm` に現在時刻をコピー
         isConfigScreenInitialized = true; // 初期化フラグを設定

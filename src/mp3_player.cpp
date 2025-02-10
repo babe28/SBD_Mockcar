@@ -18,7 +18,7 @@ void initializeDFPlayer() {
     if(checkForACK(5000)){
         Serial.println("DFPlayer initializeComplete!!");
     }
-    delay(300);
+    delay(500);
     setVolumeMP3(5); // ボリュームを設定
 }
 

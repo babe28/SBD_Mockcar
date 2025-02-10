@@ -1,5 +1,5 @@
 /*  IO関連その他をまとめたファイル
-*   mockcar-race-program v0.2
+*   mockcar-race-program v0.8
 *   io_others.cpp
 *
 *   checkStartSensor()      //スタートセンサーポーリング
@@ -145,7 +145,6 @@ void sendBluetoothData() {
 bool isSensorTriggered() {
     return false;
 }
-
 
 // ゴールセンサーの割り込みを無効化 今のところ使っていない
 void disableGoalSensorInterrupts() {

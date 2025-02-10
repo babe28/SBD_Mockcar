@@ -1,8 +1,6 @@
-
 #include "main.hpp"
 
-
-volatile uint8_t REG_table[8] = {0};                 //時間テーブルRTC
+volatile uint8_t REG_table[8] = {0};  //RTC用時間テーブル
 struct tm timeinfo;                   //内蔵RTC用時刻構造体
 const char *week[] = {"SUN","MON","TUE","WED","THR","FRI","SAT","NON"};
 
@@ -54,15 +52,14 @@ void rtc_initialize(){
 }
 
 void rtcTimeSet(){
-  byte err;
   //DS1307RTC 強制時間設定
+
+  byte err;
   Wire.beginTransmission(DS1307_ADDRESS);
-
   Wire.write(0x00); //START_REGISTOR
-
   Wire.write(0x00); //秒
-  Wire.write(0x45); //分
-  Wire.write(0x11); //時
+  Wire.write(0x30); //分
+  Wire.write(0x10); //時
   Wire.write(0x01); //週(SUN 00 MON 01 TUE 02)
   Wire.write(0x03); //日
   Wire.write(0x02); //月
@@ -173,7 +170,7 @@ void updateExternalRtc(struct tm* tm) {
     Wire.write(decToBcd(tm->tm_sec));   // 秒
     Wire.write(decToBcd(tm->tm_min));   // 分
     Wire.write(decToBcd(tm->tm_hour));  // 時 (BCD format)
-        Wire.write(decToBcd(adjustedWday)); // **曜日（0=日曜→1=日曜に変換済み）**
+    Wire.write(decToBcd(adjustedWday)); // **曜日（0=日曜→1=日曜に変換済み）**
     Wire.write(decToBcd(adjustedDay));  // 日
     Wire.write(decToBcd(adjustedMonth)); // 月（tm_monは0-11）
     Wire.write(decToBcd(tm->tm_year - 100)); // 年 (1900年基準から2000年基準に変換)
@@ -190,11 +187,6 @@ void updateExternalRtc(struct tm* tm) {
 int bcdToDec(uint8_t val) {
     return ((val >> 4) * 10) + (val & 0x0F);
 }
-int decToInt(int dec){
-  int data;
-  data = (dec >> 4 ) * 10 + (dec & 0x0F);
-  return data;
-}
 byte decToBcd(int val) {
     return (val / 10 * 16) + (val % 10);
 }
@@ -209,8 +201,6 @@ void readInternalRTC() {
                   timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
                   timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 }
-
-
 
 
 void ReceiveIR(SystemState &systemState) {

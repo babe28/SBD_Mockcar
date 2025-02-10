@@ -1,7 +1,8 @@
 /* timers.cpp 
 * タイマー関連をまとめたファイル
 *
-*　stopTimer
+*　stopTimer(int timerId)
+*  resetTimers()
 *
 */
 
