@@ -262,13 +262,11 @@ extern const unsigned char img[];
 
 #endif
 
-extern bool firstrun;                 //起動後初回か判定
 extern int goalcount;                    //ゴール通過台数
 extern int raceTotalCount;               //起動後何回レースしたか
 extern int menuSelector;
 extern int boardOPmode;               //ボード動作モード　0=NORMAL,1=LEGACY,2=OPTIONAL（当分レガシーモードのみ）
 
-extern bool isButtonPressed;         // ボタンが押されているか
 extern bool inSetupMode;             // セットアップモードかどうか
 
 // 描画用ステータス

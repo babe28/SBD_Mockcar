@@ -8,6 +8,14 @@
 #define STOP_CMD 0x16
 #define PAUSE_CMD 0x0E
 #define VOLUME_CMD 0x06
+#define NEXT_CMD 0x01
+#define PREV_CMD 0x02
+#define PLAY_RPT 0x00
+//以下は再生モード内
+#define PLAY_ONE_RPT
+#define PLAY_FOLDERONE_RPT 0x01
+#define PLAY_FOLDER_RPT 0x02
+#define PLAY_ALL_RONDOM 0x03
 #define PLAY_MODE_CMD 0x08
 
 //DFPlayerの初期化
