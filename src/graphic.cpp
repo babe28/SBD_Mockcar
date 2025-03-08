@@ -1,5 +1,5 @@
 /*  グラフィック・描画関連
-*   mockcar-race-program v0.6
+*   mockcar-race-program v0.9
 *   graphic.cpp
 * 
 *   displaySplashScreen()   起動画面表示
@@ -28,8 +28,8 @@ void displaySplashScreen() {
     gfx.setTextColor(TFT_WHITE,TFT_BLACK);
     gfx.setTextWrap(false);                   //テキスト折り返し　しない
     gfx.setTextSize(1.3);                     //テキストサイズ
-    printCentering(0,30,"モックカーレースプログラム v0.8c");
-    Serial.print("MOCKCAR RACE PROGRAM v0.8c\nNow Booting\n");
+    printCentering(0,30,"モックカーレースプログラム v0.9");
+    Serial.print("MOCKCAR RACE PROGRAM v0.9 \nNow Booting\n");
     String messageis = String(on_cycle);        //起動回数
     gfx.setTextSize(1);
     printCentering(0,55,"累積ボード起動回数 " + messageis + "回");

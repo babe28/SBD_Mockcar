@@ -11,7 +11,7 @@
 #define NEXT_CMD 0x01
 #define PREV_CMD 0x02
 #define PLAY_RPT 0x00
-//以下は再生モード内
+//以下は再生モード内での設定
 #define PLAY_ONE_RPT
 #define PLAY_FOLDERONE_RPT 0x01
 #define PLAY_FOLDER_RPT 0x02

@@ -1,5 +1,5 @@
 /*  IO関連その他をまとめたファイル
-*   mockcar-race-program v0.8
+*   mockcar-race-program v0.9
 *   io_others.cpp
 *
 *   checkStartSensor()      //スタートセンサーポーリング
