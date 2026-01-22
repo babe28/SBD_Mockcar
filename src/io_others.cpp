@@ -49,7 +49,7 @@ void checkStartSensor() {
 }
 
 
-//割り込み使用に変更から更に戻した
+//割り込み使用に変更、そこからさらに戻した
 void checkResetButton() {
     static unsigned long lastTriggerTime = 0;
     if(digitalRead(RESET_BUTTON_PIN)==LOW){
@@ -132,7 +132,19 @@ void eeprom_initialize(){
 
 void memory_wirte(){
   Preferences preferences;
+  //最終更新日
+  char buffer[20];
+  strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", tm);
+  std::string lastdate(buffer);
   preferences.begin("my_settings",RW_MODE); //２番目の引数が省略・・・読み書きモード
+  preferences.putULong("besttime",systemState.config.bestTime); //ボード最速タイム書き込み
+  preferences.putBool("settings",systemState.config.boardOPMode); //ボード設定書き込み
+  preferences.putBool("bgmPlay",systemState.config.bgmPlay); //BGMスタート時書き込み
+  preferences.putBool("bgmDucking",systemState.config.bgmDucking); //BGMダッキング書き込み
+  preferences.putInt("bgmVolume",systemState.config.bgmVolume); //BGM音量書き込み
+  //preferences.putString("lastDate", lastdate); //最終更新日書き込み
+
+  preferences.end();  //EEPROMの書き込みルーチン終了
 }
 
 //Bluetoothへ
@@ -153,6 +165,7 @@ void disableGoalSensorInterrupts() {
     detachInterrupt(digitalPinToInterrupt(GOAL_SENS_3));
 }
 
+// ゴールセンサーの割り込みを有効化
 void enableGoalSensorInterrupts() {
     attachInterrupt(digitalPinToInterrupt(GOAL_SENS_1), goalSensorISR1, FALLING);
     attachInterrupt(digitalPinToInterrupt(GOAL_SENS_2), goalSensorISR2, FALLING);

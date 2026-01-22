@@ -24,7 +24,7 @@ volatile bool resetFlag = false;                  //リセットボタン押さ�
 bool isFirstRun = true;                 //起動後初回実行かどうかを判定
 int goalcount = 0;                    //ゴール通過台数　MAX2(0-2)
 int raceTotalCount = 0;               //起動後何回レースしたか
-RingbufHandle_t IRbuffer=NULL;        //赤外線受信バッファ
+RingbufHandle_t IRbuffer=NULL;        //赤外線受信用リングバッファ
 
 // 描画用ステータス
 unsigned long lastUpdateTime = 0;     //前回更新時刻格納用
@@ -41,8 +41,8 @@ SystemState systemState;
     { // 表示パネル制御の設定
       auto cfg = _panel_instance.config();    // 表示パネル設定用の構造体を取得
       // 出力解像度を設定;
-      cfg.memory_width  = SCREEN_WIDTH; // 出力解像度 360幅
-      cfg.memory_height = SCREEN_HEIGHT; // 出力解像度 240高さ
+      cfg.memory_width  = SCREEN_WIDTH; // 出力解像度　幅
+      cfg.memory_height = SCREEN_HEIGHT; // 出力解像度　高さ
       // 実際に利用する解像度を設定;
       cfg.panel_width  = SCREEN_WIDTH - 16;  // 実際に使用する幅   (memory_width と同値か小さい値を設定する)
       cfg.panel_height = SCREEN_HEIGHT - 16;  // 実際に使用する高さ (memory_heightと同値か小さい値を設定する)
@@ -58,7 +58,7 @@ SystemState systemState;
       // cfg.signal_type = cfg.signal_type_t::NTSC;
       cfg.signal_type = cfg.signal_type_t::NTSC_J;
       // 出力先のGPIO番号を設定;
-      cfg.pin_dac = 26;       // DAC25 または 26 のみが選択できます;
+      cfg.pin_dac = 26;       // DAC25 または 26 のみが選択可能 ;
       // PSRAMメモリ割当の設定;
       cfg.use_psram = 1;      // 0=PSRAM不使用 / 1=PSRAMとSRAMを半々使用 / 2=全部PSRAM使用;
       // 出力信号の振幅の強さを設定;
@@ -78,7 +78,7 @@ SystemState systemState;
     setPanel(&_panel_instance);
   };
 
-LGFX gfx;                   //インスタンス名gfx
+LGFX gfx;                   //インスタンス gfx
 LGFX_Sprite sprite1(&gfx);  //スプライト作成
 
 BluetoothSerial SerialBT;     //Bluetoothシリアルのインスタンス作成
@@ -93,10 +93,10 @@ bool SerialDebug = true;                        //シリアルデバッグモー
 
 void setup(void)
 {
-  pinMode(RESET_BUTTON_PIN,INPUT);  //リセットボタン pins39
-  pinMode(START_BUTTON_PIN,INPUT);  //スタートボタン pins27
-  pinMode(LED_BLUE,OUTPUT);                //LED pins13
-  pinMode(LED_GREEN,OUTPUT);               //LED pins15
+  pinMode(RESET_BUTTON_PIN,INPUT);    //リセットボタン pins39
+  pinMode(START_BUTTON_PIN,INPUT);    //スタートボタン pins27
+  pinMode(LED_BLUE,OUTPUT);           //LED pins13
+  pinMode(LED_GREEN,OUTPUT);          //LED pins15
   pinMode(BULTIN_LED,OUTPUT);         //内蔵LED pins2
   pinMode(START_SENS,INPUT);          //暫定処理
   pinMode(GOAL_SENS_1, INPUT);        //暫定処理
@@ -112,12 +112,15 @@ void setup(void)
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_2), goalSensorISR2, FALLING);
   attachInterrupt(digitalPinToInterrupt(GOAL_SENS_3), goalSensorISR3, FALLING);
 
+
+  //シリアルポート初期化・DFPlayerオープン・I2Cオープン
   Serial.begin(115200);                         // Start Serial at 115200bps(デバッグ)
-  Serial2.begin(9600, SERIAL_8N1, 18, 19);      // Start Serial2 at 9600bps（DFPlayer Mini）
+  Serial2.begin(9600, SERIAL_8N1, SERIAL_MP3_RX, SERIAL_MP3_TX);      // Start Serial2 at 9600bps（DFPlayer Mini）
   printf("Serial2 Initializing...\n");
-  delay(5);
+  delay(10);
   Wire.begin(I2C_SDA,I2C_SCL);                  // Start I2C library
 
+  //赤外線受信構造体等初期化
   rmt_config_t rmtConfig;                           //赤外線受信クラス定義
   rmtConfig.rmt_mode = RMT_MODE_RX;                 //受信モード
   rmtConfig.channel = RMT_CHANNEL_0;                //CHANNEL 0で初期化
@@ -137,7 +140,7 @@ void setup(void)
   sprite1.setPsram(true);          // PSRAMにスプライトを配置
 
   SerialBT.begin("MockcarRACETimer");               //この名前でBluetoothの一覧に出てくる
-  Serial.println("Bluetooth Start!");
+  Serial.println("Bluetooth Started.");
   Serial.println("You can find BT 'MockcarRACETimer'");
   Serial.println("I/O setting complete");
 
@@ -153,7 +156,7 @@ void setup(void)
       systemState.race.goalSensors[i].lastTriggerTime = 0;  //ゴールセンサーの時間
   }
   systemState.config.setupMode = false;       //設定モードにいるか判定
-  systemState.race.raceFlag = false;
+  systemState.race.raceFlag = false;            //レース中判定
   systemState.config.selectedMenuItem = 0;    //設定モードのメニュー選択用
 
   SerialBT.println("setup function finished.");
@@ -179,7 +182,7 @@ void setup(void)
   Serial.printf("Flash Frequency = %d Hz\r\n", ESP.getFlashChipSpeed());
   Serial.printf("ESP-IDF version = %s\r\n", esp_get_idf_version());
 
-uint8_t mac0[6];
+  uint8_t mac0[6];
   esp_efuse_mac_get_default(mac0);
   Serial.printf("Default Mac Address = %02X:%02X:%02X:%02X:%02X:%02X\r\n", mac0[0], mac0[1], mac0[2], mac0[3], mac0[4], mac0[5]);
  
@@ -201,9 +204,9 @@ uint8_t mac0[6];
   }
   //シリアルデバッグ有効でデバッグ情報表示
 
-  delay(500);                    //デバッグ用　取ってOK
+  delay(300);                    //デバッグ用　取ってOK
   digitalWrite(BULTIN_LED,LOW);  //内蔵LED OFF
-
+  isFirstRun = true;           //初回実行フラグセット
 }
 
 /* ********************************************************* */
@@ -269,7 +272,6 @@ void loop() {
    delay(10);
 
 }
-
 
 /* ********************************************************* */
 /* *********** メインloop関数ここまで **************************/

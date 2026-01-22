@@ -20,7 +20,7 @@
 #include <Preferences.h>            //内蔵EEPROM保存用
 #include <Wire.h>                   //I2C
 #include <driver/rmt.h>             //赤外線モジュール用
-#include <time.h>                   
+#include <time.h>
 
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
@@ -43,10 +43,10 @@
 #define STATUSBAR_HEIGHT 18     //ステータスバーの高さ
 #define I2C_SDA 22              //RTC用
 #define I2C_SCL 23              //RTC用
-#define SERIAL_MP3_RX 18
-#define SERIAL_MP3_TX 19
+#define SERIAL_MP3_RX 18        //MP3モジュール  RX18
+#define SERIAL_MP3_TX 19        //MP3モジュール  TX19
 #define RMT_CHANNEL_TX RMT_CHANNNEL_0
-#define CARRIER_FREQ 38000
+#define CARRIER_FREQ 38000      //赤外線キャリア周波数
 
 #define TIMER_SEGMENT_X 118
 #define DRAWLINE_X 102
@@ -97,10 +97,10 @@ struct IRs {//リモコン
 // レース全体の状態
 struct Race {
     bool raceFlag = false;           // レース中フラグ
-    bool resetFlag = false;         //追加　リセットフラグ
-    bool signalFlag = false;        //追加　シグナルフラグ
-    bool signalDrawing = false;     //追加　シグナル描画フラグ
-    bool bgmFlag = false;           //追加　BGMフラグ
+    bool resetFlag = false;         //　リセットフラグ
+    bool signalFlag = false;        //　シグナルフラグ
+    bool signalDrawing = false;     //　シグナル描画フラグ
+    bool bgmFlag = false;           //　BGMフラグ
     unsigned long startTime = 0;     // スタート時刻
     int goalCount = 0;               // ゴールした車両数
     Timer timers[3];                 // 各車両のタイマー
@@ -118,11 +118,18 @@ struct Config {
     int selectedMenuItem = 0;        // 現在選択中のメニュー項目
     int boardOPMode = 0;            //ボード動作モード
     int bgmVolume = 0;              //Volume
+    bool bgmPlay = false;         //BGMを流すかどうか。
+    bool bgmPlayOnStart = false;    //スタート時にBGMを流すかどうか。
     bool bgmDucking  = false;       //BGMをアイドル時にダッキングするかどうか。
     unsigned long bestTime = 0;      // ボード最速タイム
     int oncycle = 0;                //起動回数
-};
 
+    int sensorDelay = 0;            //センサーディレイ
+    bool isBluetoothEnabled = false; // Bluetoothの有効化フラグ
+    bool isIRReceiverEnabled = false;// 赤外線受信機能の有効化フラグ
+    bool isDFPlayerEnabled = false;  // DFPlayerの有効化フラグ
+    bool isRTCEnabled = false;       // RTCの有効化フラグ
+};
 
 // レース履歴
 struct History {
@@ -139,6 +146,14 @@ struct SystemState {
     Button buttons[4];               // ボタン
     IRs ir_state;                  // 赤外線受信
 };
+
+enum class DisplayState {
+    Idle,    // 待機画面
+    Setup,   // 設定画面
+    Racing,   // レース画面
+    History     //履歴画面（設定画面内の想定）
+};
+
 
 // グローバルシステム状態
 extern SystemState systemState;
@@ -250,12 +265,6 @@ void eeprom_initialize();
 void resetRaceState();
 
 
-enum class DisplayState {
-    Idle,    // 待機画面
-    Setup,   // 設定画面
-    Racing,   // レース画面
-    History     //履歴画面（設定画面内の想定）
-};
 
 extern const unsigned char img[];
 
